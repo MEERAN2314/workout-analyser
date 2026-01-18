@@ -11,7 +11,7 @@ A comprehensive workout analysis application with live video analysis and record
 - **MediaPipe** - Pose estimation and workout analysis
 - **OpenCV** - Video processing and manipulation
 - **MongoDB Atlas** - Primary database (user data, workout sessions, analysis results, chat history)
-- **Google Cloud Storage** - Video file storage only
+- **Google Drive** - Video file storage only
 - **Redis** - Caching and session management
 - **Celery** - Background task processing for video analysis
 - **LangChain + Gemini 2.0 Flash** - AI chatbot for workout consultation
@@ -23,7 +23,7 @@ A comprehensive workout analysis application with live video analysis and record
 - **Web APIs** - Camera access, speech synthesis, file handling
 
 ### Additional Tools
-- **google-cloud-storage** - GCS Python client
+- **google-api-python-client** - Google Drive API client
 - **Pydantic** - Data validation and serialization
 - **Pillow** - Image processing
 - **ReportLab** - PDF generation for workout reports
@@ -73,10 +73,10 @@ A comprehensive workout analysis application with live video analysis and record
   - Workouts (sessions, metrics, analysis results)
   - Exercises (library, instructions, form guidelines)
   - Chat_sessions (AI conversations, context)
-- **GCS Integration**:
-  - Video upload with signed URLs
-  - Automatic cleanup of processed videos
-  - Thumbnail generation and storage
+- **Google Drive Integration**:
+  - Video upload with shareable links
+  - Free 15GB storage for testing
+  - Easy authentication with Google account
 
 ### 6. Analytics & Reporting
 - **Progress tracking** with MongoDB aggregation
@@ -88,7 +88,7 @@ A comprehensive workout analysis application with live video analysis and record
 
 ### Phase 1: Foundation (Weeks 1-2)
 - FastAPI project setup with MongoDB Atlas connection
-- Google Cloud Storage integration
+- Google Drive integration
 - Basic Jinja2 templates and routing
 - User authentication system
 - Exercise library setup in MongoDB
@@ -101,7 +101,7 @@ A comprehensive workout analysis application with live video analysis and record
 - Session data storage in MongoDB
 
 ### Phase 3: Recording Analysis Core (Weeks 5-6)
-- Video upload to Google Cloud Storage
+- Video upload to Google Drive
 - Celery setup for background processing
 - Video analysis pipeline with MediaPipe
 - Results storage and retrieval from MongoDB
@@ -149,7 +149,7 @@ A comprehensive workout analysis application with live video analysis and record
 - Form improvement suggestions
 
 ## Storage Strategy
-- **Videos**: Google Cloud Storage for scalability and performance
+- **Videos**: Google Drive for free storage and easy testing
 - **All other data**: MongoDB Atlas for flexibility and document-based storage
 - **Caching**: Redis for session management and temporary data
 - **Background jobs**: Celery with Redis as message broker

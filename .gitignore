@@ -76,6 +76,9 @@ static/uploads/
 *.json
 service-account-*.json
 gcp-credentials.json
+credentials.json
+google_drive_token.pickle
+token.pickle
 
 # Celery
 celerybeat-schedule

@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
+from pydantic import BaseModel, Field, ConfigDict
+from typing import Optional, List, Dict, Any, Annotated
 from datetime import datetime
 from bson import ObjectId
 from app.models.user import PyObjectId
@@ -14,9 +14,15 @@ class ExerciseResult(BaseModel):
     calories_burned: Optional[float] = None
 
 class WorkoutSession(BaseModel):
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str}
+    )
+    
+    id: Annotated[PyObjectId, Field(default_factory=PyObjectId, alias="_id")]
     user_id: PyObjectId
-    session_type: str = Field(..., regex="^(live|recording)$")
+    session_type: str = Field(..., pattern="^(live|recording)$")
     
     # Exercise details
     exercise_name: str
@@ -43,15 +49,10 @@ class WorkoutSession(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     analysis_completed: bool = False
-    
-    class Config:
-        allow_population_by_field_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
 
 class WorkoutCreate(BaseModel):
     exercise_name: str
-    session_type: str = Field(..., regex="^(live|recording)$")
+    session_type: str = Field(..., pattern="^(live|recording)$")
     video_filename: Optional[str] = None
 
 class WorkoutUpdate(BaseModel):
@@ -67,13 +68,19 @@ class WorkoutUpdate(BaseModel):
     duration: Optional[float] = None
 
 class Exercise(BaseModel):
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str}
+    )
+    
+    id: Annotated[PyObjectId, Field(default_factory=PyObjectId, alias="_id")]
     name: str
     category: str  # e.g., "upper_body", "lower_body", "cardio"
     description: str
     instructions: List[str]
     target_muscles: List[str]
-    difficulty_level: str = Field(..., regex="^(beginner|intermediate|advanced)$")
+    difficulty_level: str = Field(..., pattern="^(beginner|intermediate|advanced)$")
     equipment_needed: List[str] = []
     
     # MediaPipe specific configurations
@@ -81,8 +88,3 @@ class Exercise(BaseModel):
     form_rules: Dict[str, Any] = {}  # Exercise-specific form validation rules
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    
-    class Config:
-        allow_population_by_field_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}

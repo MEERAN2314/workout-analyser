@@ -6,10 +6,10 @@ class Settings(BaseSettings):
     MONGODB_URL: str
     DATABASE_NAME: str = "workout_analyzer"
     
-    # Google Cloud
-    GOOGLE_CLOUD_PROJECT_ID: str
-    GOOGLE_CLOUD_STORAGE_BUCKET: str
-    GOOGLE_APPLICATION_CREDENTIALS: Optional[str] = None
+    # Google Drive
+    GOOGLE_DRIVE_CREDENTIALS_FILE: str
+    GOOGLE_DRIVE_TOKEN_FILE: str
+    GOOGLE_DRIVE_FOLDER_ID: Optional[str] = None
     
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"

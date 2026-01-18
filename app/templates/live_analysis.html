@@ -11,17 +11,44 @@
 <div class="row">
     <div class="col-md-8">
         <div class="card">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Camera Feed</h5>
+                <span id="connection-status" class="badge bg-secondary">Disconnected</span>
             </div>
             <div class="card-body">
                 <div id="camera-container" class="text-center">
-                    <video id="video" width="640" height="480" autoplay style="border: 2px solid #ddd; border-radius: 8px;"></video>
+                    <video id="video" width="640" height="480" autoplay style="border: 2px solid #ddd; border-radius: 8px; transform: rotate(0deg); transition: transform 0.3s ease;"></video>
                     <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
                 </div>
                 <div class="mt-3 text-center">
-                    <button id="start-camera" class="btn btn-primary">Start Camera</button>
-                    <button id="stop-camera" class="btn btn-danger" disabled>Stop Camera</button>
+                    <div class="btn-group mb-2" role="group">
+                        <button id="start-camera" class="btn btn-primary">Start Camera</button>
+                        <button id="switch-camera" class="btn btn-outline-primary" title="Switch Camera" disabled>
+                            <i class="fas fa-camera-rotate"></i>
+                        </button>
+                        <button id="stop-camera" class="btn btn-danger" disabled>Stop Camera</button>
+                        <button id="end-workout" class="btn btn-warning" disabled>End Workout</button>
+                    </div>
+                    <div class="btn-group ms-2 mb-2" role="group">
+                        <button id="rotate-left" class="btn btn-outline-secondary" title="Rotate Left 90°" disabled>
+                            <i class="fas fa-undo"></i>
+                        </button>
+                        <button id="flip-horizontal" class="btn btn-outline-secondary" title="Flip Horizontal" disabled>
+                            <i class="fas fa-arrows-alt-h"></i>
+                        </button>
+                        <button id="flip-vertical" class="btn btn-outline-secondary" title="Flip Vertical" disabled>
+                            <i class="fas fa-arrows-alt-v"></i>
+                        </button>
+                        <button id="rotate-right" class="btn btn-outline-secondary" title="Rotate Right 90°" disabled>
+                            <i class="fas fa-redo"></i>
+                        </button>
+                        <button id="reset-camera" class="btn btn-outline-info" title="Reset Camera" disabled>
+                            <i class="fas fa-sync"></i>
+                        </button>
+                    </div>
+                    <div class="mt-2">
+                        <small id="camera-info" class="text-muted">No camera selected</small>
+                    </div>
                 </div>
             </div>
         </div>
@@ -37,7 +64,7 @@
                     <option value="">Select Exercise</option>
                     <option value="push_ups">Push-ups</option>
                     <option value="squats">Squats</option>
-                    <option value="lunges">Lunges</option>
+                    <option value="bicep_curls">Bicep Curls</option>
                 </select>
                 <button id="start-workout" class="btn btn-success w-100" disabled>Start Workout</button>
             </div>
@@ -49,14 +76,21 @@
             </div>
             <div class="card-body">
                 <div class="row text-center">
-                    <div class="col-6">
+                    <div class="col-4">
                         <h3 id="rep-count" class="text-primary">0</h3>
                         <small>Reps</small>
                     </div>
-                    <div class="col-6">
+                    <div class="col-4">
                         <h3 id="accuracy" class="text-success">0%</h3>
                         <small>Accuracy</small>
                     </div>
+                    <div class="col-4">
+                        <h3 id="phase" class="text-info">Ready</h3>
+                        <small>Phase</small>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <small class="text-muted">Duration: <span id="duration">00:00</span></small>
                 </div>
             </div>
         </div>
@@ -69,6 +103,49 @@
                 <div id="feedback" class="alert alert-info">
                     Select an exercise and start your camera to begin
                 </div>
+                <div id="feedback-history" class="mt-2" style="max-height: 200px; overflow-y: auto;">
+                    <!-- Feedback history will appear here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Camera Controls</h5>
+            </div>
+            <div class="card-body">
+                <small class="text-muted">
+                    <strong>Camera Selection:</strong><br>
+                    • <i class="fas fa-camera-rotate"></i> Switch between available cameras<br>
+                    <strong>Camera Rotation:</strong><br>
+                    • <i class="fas fa-undo"></i> Rotate left 90°<br>
+                    • <i class="fas fa-redo"></i> Rotate right 90°<br>
+                    • <i class="fas fa-arrows-alt-h"></i> Flip horizontally<br>
+                    • <i class="fas fa-arrows-alt-v"></i> Flip vertically<br>
+                    • <i class="fas fa-sync"></i> Reset to default<br>
+                    <em>Note: Controls are disabled during workout</em>
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Session Complete Modal -->
+<div class="modal fade" id="sessionCompleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Workout Complete!</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="final-stats">
+                    <!-- Final statistics will be populated here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="startNewWorkout()">Start New Workout</button>
             </div>
         </div>
     </div>
@@ -77,44 +154,551 @@
 
 {% block scripts %}
 <script>
-// Basic camera functionality - will be enhanced with MediaPipe later
-document.getElementById('start-camera').addEventListener('click', async function() {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        document.getElementById('video').srcObject = stream;
-        document.getElementById('start-camera').disabled = true;
-        document.getElementById('stop-camera').disabled = false;
-        document.getElementById('start-workout').disabled = false;
-    } catch (err) {
-        alert('Error accessing camera: ' + err.message);
-    }
-});
-
-document.getElementById('stop-camera').addEventListener('click', function() {
-    const video = document.getElementById('video');
-    const stream = video.srcObject;
-    if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        video.srcObject = null;
-    }
-    document.getElementById('start-camera').disabled = false;
-    document.getElementById('stop-camera').disabled = true;
-    document.getElementById('start-workout').disabled = true;
-});
-
-document.getElementById('start-workout').addEventListener('click', function() {
-    const exercise = document.getElementById('exercise-select').value;
-    if (!exercise) {
-        alert('Please select an exercise first');
-        return;
+class LiveAnalysisApp {
+    constructor() {
+        this.video = document.getElementById('video');
+        this.canvas = document.getElementById('canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.websocket = null;
+        this.sessionId = null;
+        this.isWorkoutActive = false;
+        this.frameInterval = null;
+        this.startTime = null;
+        this.durationInterval = null;
+        
+        // Camera management
+        this.availableCameras = [];
+        this.currentCameraIndex = 0;
+        this.currentStream = null;
+        
+        // Camera transformation state
+        this.cameraTransform = {
+            rotation: 0,
+            flipHorizontal: false,
+            flipVertical: false
+        };
+        
+        this.initializeEventListeners();
+        this.detectAvailableCameras();
     }
     
-    document.getElementById('feedback').innerHTML = `
-        <strong>Workout Started!</strong><br>
-        Exercise: ${exercise.replace('_', ' ').toUpperCase()}<br>
-        <small>MediaPipe integration coming soon...</small>
-    `;
-    document.getElementById('feedback').className = 'alert alert-success';
+    initializeEventListeners() {
+        document.getElementById('start-camera').addEventListener('click', () => this.startCamera());
+        document.getElementById('switch-camera').addEventListener('click', () => this.switchCamera());
+        document.getElementById('stop-camera').addEventListener('click', () => this.stopCamera());
+        document.getElementById('start-workout').addEventListener('click', () => this.startWorkout());
+        document.getElementById('end-workout').addEventListener('click', () => this.endWorkout());
+        
+        // Camera transformation controls
+        document.getElementById('rotate-left').addEventListener('click', () => this.rotateCamera(-90));
+        document.getElementById('rotate-right').addEventListener('click', () => this.rotateCamera(90));
+        document.getElementById('flip-horizontal').addEventListener('click', () => this.flipCamera('horizontal'));
+        document.getElementById('flip-vertical').addEventListener('click', () => this.flipCamera('vertical'));
+        document.getElementById('reset-camera').addEventListener('click', () => this.resetCamera());
+    }
+    
+    async detectAvailableCameras() {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            this.availableCameras = devices.filter(device => device.kind === 'videoinput');
+            
+            if (this.availableCameras.length > 0) {
+                this.updateCameraInfo();
+                document.getElementById('start-camera').disabled = false;
+            } else {
+                this.updateFeedback('No cameras detected on this device', 'warning');
+                document.getElementById('camera-info').textContent = 'No cameras available';
+            }
+        } catch (err) {
+            console.error('Error detecting cameras:', err);
+            this.updateFeedback('Error detecting cameras: ' + err.message, 'danger');
+        }
+    }
+    
+    updateCameraInfo() {
+        if (this.availableCameras.length === 0) {
+            document.getElementById('camera-info').textContent = 'No cameras available';
+            return;
+        }
+        
+        const currentCamera = this.availableCameras[this.currentCameraIndex];
+        const cameraName = currentCamera.label || `Camera ${this.currentCameraIndex + 1}`;
+        const cameraCount = this.availableCameras.length;
+        
+        document.getElementById('camera-info').textContent = 
+            `${cameraName} (${this.currentCameraIndex + 1}/${cameraCount})`;
+    }
+    
+    async startCamera() {
+        try {
+            if (this.availableCameras.length === 0) {
+                throw new Error('No cameras available');
+            }
+            
+            const deviceId = this.availableCameras[this.currentCameraIndex].deviceId;
+            
+            this.currentStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    deviceId: deviceId ? { exact: deviceId } : undefined,
+                    width: 640, 
+                    height: 480 
+                } 
+            });
+            
+            this.video.srcObject = this.currentStream;
+            
+            document.getElementById('start-camera').disabled = true;
+            document.getElementById('stop-camera').disabled = false;
+            
+            // Enable camera controls
+            this.enableCameraControls(true);
+            
+            const exercise = document.getElementById('exercise-select').value;
+            if (exercise) {
+                document.getElementById('start-workout').disabled = false;
+            }
+            
+            this.updateCameraInfo();
+            this.updateFeedback('Camera started. Use controls to adjust orientation or switch cameras.', 'info');
+            
+        } catch (err) {
+            this.updateFeedback('Error accessing camera: ' + err.message, 'danger');
+        }
+    }
+    
+    async switchCamera() {
+        if (this.availableCameras.length <= 1) {
+            this.updateFeedback('Only one camera available', 'info');
+            return;
+        }
+        
+        try {
+            // Stop current stream
+            if (this.currentStream) {
+                this.currentStream.getTracks().forEach(track => track.stop());
+            }
+            
+            // Switch to next camera
+            this.currentCameraIndex = (this.currentCameraIndex + 1) % this.availableCameras.length;
+            
+            // Start new camera
+            const deviceId = this.availableCameras[this.currentCameraIndex].deviceId;
+            
+            this.currentStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    deviceId: deviceId ? { exact: deviceId } : undefined,
+                    width: 640, 
+                    height: 480 
+                } 
+            });
+            
+            this.video.srcObject = this.currentStream;
+            
+            this.updateCameraInfo();
+            
+            const cameraName = this.availableCameras[this.currentCameraIndex].label || 
+                              `Camera ${this.currentCameraIndex + 1}`;
+            this.updateFeedback(`Switched to: ${cameraName}`, 'info');
+            
+        } catch (err) {
+            this.updateFeedback('Error switching camera: ' + err.message, 'danger');
+            
+            // Try to restart the previous camera
+            this.currentCameraIndex = (this.currentCameraIndex - 1 + this.availableCameras.length) % this.availableCameras.length;
+            this.startCamera();
+        }
+    }
+    
+    stopCamera() {
+        if (this.currentStream) {
+            this.currentStream.getTracks().forEach(track => track.stop());
+            this.video.srcObject = null;
+            this.currentStream = null;
+        }
+        
+        if (this.isWorkoutActive) {
+            this.endWorkout();
+        }
+        
+        document.getElementById('start-camera').disabled = false;
+        document.getElementById('stop-camera').disabled = true;
+        document.getElementById('start-workout').disabled = true;
+        
+        // Disable camera controls
+        this.enableCameraControls(false);
+        
+        this.updateFeedback('Camera stopped.', 'info');
+    }
+    
+    enableCameraControls(enabled) {
+        const controls = ['switch-camera', 'rotate-left', 'rotate-right', 'flip-horizontal', 'flip-vertical', 'reset-camera'];
+        controls.forEach(id => {
+            document.getElementById(id).disabled = !enabled;
+        });
+        
+        // Special handling for switch camera - only enable if multiple cameras available
+        if (enabled && this.availableCameras.length <= 1) {
+            document.getElementById('switch-camera').disabled = true;
+        }
+    }
+    
+    rotateCamera(degrees) {
+        this.cameraTransform.rotation = (this.cameraTransform.rotation + degrees) % 360;
+        if (this.cameraTransform.rotation < 0) {
+            this.cameraTransform.rotation += 360;
+        }
+        this.applyCameraTransform();
+        this.updateFeedback(`Camera rotated ${degrees > 0 ? 'right' : 'left'} 90°`, 'info');
+    }
+    
+    flipCamera(direction) {
+        if (direction === 'horizontal') {
+            this.cameraTransform.flipHorizontal = !this.cameraTransform.flipHorizontal;
+            this.updateFeedback(`Camera ${this.cameraTransform.flipHorizontal ? 'flipped' : 'unflipped'} horizontally`, 'info');
+        } else if (direction === 'vertical') {
+            this.cameraTransform.flipVertical = !this.cameraTransform.flipVertical;
+            this.updateFeedback(`Camera ${this.cameraTransform.flipVertical ? 'flipped' : 'unflipped'} vertically`, 'info');
+        }
+        this.applyCameraTransform();
+    }
+    
+    resetCamera() {
+        this.cameraTransform = {
+            rotation: 0,
+            flipHorizontal: false,
+            flipVertical: false
+        };
+        this.applyCameraTransform();
+        this.updateFeedback('Camera orientation reset to default', 'info');
+    }
+    
+    applyCameraTransform() {
+        let transform = `rotate(${this.cameraTransform.rotation}deg)`;
+        
+        if (this.cameraTransform.flipHorizontal) {
+            transform += ' scaleX(-1)';
+        }
+        
+        if (this.cameraTransform.flipVertical) {
+            transform += ' scaleY(-1)';
+        }
+        
+        this.video.style.transform = transform;
+    }
+    
+    async startWorkout() {
+        const exercise = document.getElementById('exercise-select').value;
+        if (!exercise) {
+            alert('Please select an exercise first');
+            return;
+        }
+        
+        try {
+            // Start session on server
+            const response = await fetch('/live/start-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    exercise_name: exercise,
+                    user_id: 'demo_user' // In production, get from JWT token
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to start session');
+            }
+            
+            const data = await response.json();
+            this.sessionId = data.session_id;
+            
+            // Connect WebSocket
+            await this.connectWebSocket();
+            
+            // Start sending frames
+            this.startFrameCapture();
+            
+            // Update UI
+            this.isWorkoutActive = true;
+            this.startTime = Date.now();
+            this.startDurationTimer();
+            
+            document.getElementById('start-workout').disabled = true;
+            document.getElementById('end-workout').disabled = false;
+            document.getElementById('exercise-select').disabled = true;
+            
+            // Disable camera controls during workout
+            this.enableCameraControls(false);
+            
+            this.updateFeedback(`Workout started! Exercise: ${exercise.replace('_', ' ')}. Camera controls disabled during workout.`, 'success');
+            
+        } catch (error) {
+            this.updateFeedback('Error starting workout: ' + error.message, 'danger');
+        }
+    }
+    
+    async connectWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/live/ws/${this.sessionId}`;
+        
+        this.websocket = new WebSocket(wsUrl);
+        
+        this.websocket.onopen = () => {
+            document.getElementById('connection-status').textContent = 'Connected';
+            document.getElementById('connection-status').className = 'badge bg-success';
+        };
+        
+        this.websocket.onmessage = (event) => {
+            this.handleWebSocketMessage(JSON.parse(event.data));
+        };
+        
+        this.websocket.onclose = () => {
+            document.getElementById('connection-status').textContent = 'Disconnected';
+            document.getElementById('connection-status').className = 'badge bg-danger';
+        };
+        
+        this.websocket.onerror = (error) => {
+            this.updateFeedback('WebSocket error: ' + error.message, 'danger');
+        };
+    }
+    
+    handleWebSocketMessage(message) {
+        switch (message.type) {
+            case 'connected':
+                this.updateFeedback(message.data.message, 'success');
+                break;
+                
+            case 'analysis_result':
+                this.updateStats(message.data);
+                break;
+                
+            case 'feedback':
+                this.addFeedbackToHistory(message.data.feedback);
+                break;
+                
+            case 'rep_update':
+                this.updateRepCount(message.data.rep_count, message.data.current_phase);
+                break;
+                
+            case 'session_complete':
+                this.handleSessionComplete(message.data);
+                break;
+                
+            case 'error':
+                this.updateFeedback('Error: ' + message.data.message, 'danger');
+                break;
+        }
+    }
+    
+    startFrameCapture() {
+        this.frameInterval = setInterval(() => {
+            if (this.isWorkoutActive && this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+                this.captureAndSendFrame();
+            }
+        }, 100); // Send frame every 100ms (10 FPS)
+    }
+    
+    captureAndSendFrame() {
+        // Save current canvas context state
+        this.ctx.save();
+        
+        // Clear canvas
+        this.ctx.clearRect(0, 0, 640, 480);
+        
+        // Apply transformations to canvas context for frame processing
+        this.ctx.translate(320, 240); // Move to center
+        
+        // Apply rotation
+        this.ctx.rotate(this.cameraTransform.rotation * Math.PI / 180);
+        
+        // Apply flips
+        let scaleX = this.cameraTransform.flipHorizontal ? -1 : 1;
+        let scaleY = this.cameraTransform.flipVertical ? -1 : 1;
+        this.ctx.scale(scaleX, scaleY);
+        
+        // Draw video frame with transformations
+        this.ctx.drawImage(this.video, -320, -240, 640, 480);
+        
+        // Restore canvas context
+        this.ctx.restore();
+        
+        // Convert to base64
+        const imageData = this.canvas.toDataURL('image/jpeg', 0.8);
+        
+        // Send to server with transformation and camera info
+        this.websocket.send(JSON.stringify({
+            type: 'frame',
+            data: {
+                image: imageData,
+                timestamp: Date.now(),
+                transform: this.cameraTransform,
+                camera_info: {
+                    index: this.currentCameraIndex,
+                    label: this.availableCameras[this.currentCameraIndex]?.label || 'Unknown'
+                }
+            }
+        }));
+    }
+    
+    updateStats(data) {
+        document.getElementById('rep-count').textContent = data.rep_count;
+        document.getElementById('accuracy').textContent = Math.round(data.accuracy_score * 100) + '%';
+        document.getElementById('phase').textContent = data.current_phase;
+        
+        // Update accuracy color
+        const accuracyElement = document.getElementById('accuracy');
+        if (data.accuracy_score >= 0.8) {
+            accuracyElement.className = 'text-success';
+        } else if (data.accuracy_score >= 0.6) {
+            accuracyElement.className = 'text-warning';
+        } else {
+            accuracyElement.className = 'text-danger';
+        }
+    }
+    
+    updateRepCount(repCount, phase) {
+        document.getElementById('rep-count').textContent = repCount;
+        document.getElementById('phase').textContent = phase;
+    }
+    
+    addFeedbackToHistory(feedback) {
+        const historyDiv = document.getElementById('feedback-history');
+        feedback.forEach(item => {
+            const feedbackItem = document.createElement('div');
+            feedbackItem.className = 'alert alert-warning alert-sm py-1 px-2 mb-1';
+            feedbackItem.innerHTML = `<small>${item}</small>`;
+            historyDiv.appendChild(feedbackItem);
+        });
+        
+        // Scroll to bottom
+        historyDiv.scrollTop = historyDiv.scrollHeight;
+        
+        // Keep only last 10 feedback items
+        while (historyDiv.children.length > 10) {
+            historyDiv.removeChild(historyDiv.firstChild);
+        }
+    }
+    
+    startDurationTimer() {
+        this.durationInterval = setInterval(() => {
+            if (this.startTime) {
+                const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                document.getElementById('duration').textContent = 
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }, 1000);
+    }
+    
+    async endWorkout() {
+        if (!this.isWorkoutActive) return;
+        
+        this.isWorkoutActive = false;
+        
+        // Stop frame capture
+        if (this.frameInterval) {
+            clearInterval(this.frameInterval);
+            this.frameInterval = null;
+        }
+        
+        // Stop duration timer
+        if (this.durationInterval) {
+            clearInterval(this.durationInterval);
+            this.durationInterval = null;
+        }
+        
+        // Send end session message
+        if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+            this.websocket.send(JSON.stringify({
+                type: 'end_session',
+                data: {}
+            }));
+        }
+        
+        // Update UI
+        document.getElementById('start-workout').disabled = false;
+        document.getElementById('end-workout').disabled = true;
+        document.getElementById('exercise-select').disabled = false;
+        
+        // Re-enable camera controls
+        this.enableCameraControls(true);
+        
+        this.updateFeedback('Workout ended. Great job! Camera controls re-enabled.', 'info');
+    }
+    
+    handleSessionComplete(finalStats) {
+        // Populate modal with final statistics
+        const statsDiv = document.getElementById('final-stats');
+        statsDiv.innerHTML = `
+            <div class="row text-center mb-3">
+                <div class="col-4">
+                    <h4 class="text-primary">${finalStats.total_reps}</h4>
+                    <small>Total Reps</small>
+                </div>
+                <div class="col-4">
+                    <h4 class="text-success">${Math.round(finalStats.average_accuracy * 100)}%</h4>
+                    <small>Avg Accuracy</small>
+                </div>
+                <div class="col-4">
+                    <h4 class="text-info">${Math.round(finalStats.duration)}s</h4>
+                    <small>Duration</small>
+                </div>
+            </div>
+            <div class="mb-3">
+                <h6>Exercise: ${finalStats.exercise_name.replace('_', ' ')}</h6>
+                <p class="text-muted">Completed at: ${new Date(finalStats.completed_at).toLocaleTimeString()}</p>
+            </div>
+            ${finalStats.feedback_summary.length > 0 ? `
+                <div>
+                    <h6>Key Feedback:</h6>
+                    <ul class="list-unstyled">
+                        ${finalStats.feedback_summary.map(item => `<li><small>• ${item}</small></li>`).join('')}
+                    </ul>
+                </div>
+            ` : ''}
+        `;
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('sessionCompleteModal'));
+        modal.show();
+        
+        // Close WebSocket
+        if (this.websocket) {
+            this.websocket.close();
+            this.websocket = null;
+        }
+    }
+    
+    updateFeedback(message, type) {
+        const feedbackDiv = document.getElementById('feedback');
+        feedbackDiv.textContent = message;
+        feedbackDiv.className = `alert alert-${type}`;
+    }
+}
+
+// Initialize app when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    window.liveAnalysisApp = new LiveAnalysisApp();
 });
+
+function startNewWorkout() {
+    // Reset stats
+    document.getElementById('rep-count').textContent = '0';
+    document.getElementById('accuracy').textContent = '0%';
+    document.getElementById('phase').textContent = 'Ready';
+    document.getElementById('duration').textContent = '00:00';
+    document.getElementById('feedback-history').innerHTML = '';
+    
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('sessionCompleteModal'));
+    modal.hide();
+    
+    // Reset app state
+    window.liveAnalysisApp.sessionId = null;
+    window.liveAnalysisApp.startTime = null;
+    window.liveAnalysisApp.updateFeedback('Ready for new workout!', 'info');
+}
 </script>
 {% endblock %}

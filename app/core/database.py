@@ -24,17 +24,24 @@ async def connect_to_mongo():
         await create_indexes()
         
     except Exception as e:
-        logger.error(f"Error connecting to MongoDB: {e}")
-        raise
+        logger.warning(f"MongoDB connection failed: {e}")
+        logger.info("Running without database connection - some features will be limited")
+        # Don't raise the exception, just log it
+        db.client = None
+        db.database = None
 
 async def close_mongo_connection():
     """Close database connection"""
-    if db.client:
+    if db.client is not None:
         db.client.close()
         logger.info("Disconnected from MongoDB")
 
 async def create_indexes():
     """Create database indexes for better performance"""
+    if db.database is None:
+        logger.info("Skipping index creation - no database connection")
+        return
+        
     try:
         # Users collection indexes
         await db.database.users.create_index("email", unique=True)
@@ -56,4 +63,4 @@ async def create_indexes():
 
 def get_database():
     """Get database instance"""
-    return db.database
+    return db.database if db.database is not None else None

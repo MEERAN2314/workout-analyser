@@ -2,17 +2,29 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 import uvicorn
 
 from app.core.config import settings
 from app.core.database import connect_to_mongo, close_mongo_connection
-from app.api.routes import home, live_analysis, recording_analysis, auth
+from app.api.routes import home, live_analysis, recording_analysis, auth, exercises
+from app.services.exercise_library import exercise_library
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    await connect_to_mongo()
+    await exercise_library.initialize()
+    yield
+    # Shutdown
+    await close_mongo_connection()
 
 # Create FastAPI app
 app = FastAPI(
     title="Workout Analyzer",
     description="AI-powered workout analysis with live and recording capabilities",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS middleware
@@ -28,20 +40,12 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
-# Database events
-@app.on_event("startup")
-async def startup_event():
-    await connect_to_mongo()
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    await close_mongo_connection()
-
 # Include routers
 app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(home.router, prefix="", tags=["home"])
 app.include_router(live_analysis.router, prefix="/live", tags=["live-analysis"])
 app.include_router(recording_analysis.router, prefix="/recording", tags=["recording-analysis"])
+app.include_router(exercises.router, prefix="/exercises", tags=["exercises"])
 
 # Health check
 @app.get("/health")
