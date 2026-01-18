@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2>Dashboard</h2>
+        <p class="text-muted">Your workout progress and analytics</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-3 mb-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5 class="card-title">Total Workouts</h5>
+                <h2 class="card-text">0</h2>
+                <small>This week</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h5 class="card-title">Calories Burned</h5>
+                <h2 class="card-text">0</h2>
+                <small>This week</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h5 class="card-title">Average Accuracy</h5>
+                <h2 class="card-text">0%</h2>
+                <small>Last 10 workouts</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <h5 class="card-title">Streak</h5>
+                <h2 class="card-text">0</h2>
+                <small>Days</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Recent Workouts</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">No workouts yet. Start your first workout!</p>
+                <div class="d-flex gap-2">
+                    <a href="/live" class="btn btn-primary">Live Analysis</a>
+                    <a href="/recording" class="btn btn-success">Upload Video</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2>Live Analysis</h2>
+        <p class="text-muted">Real-time workout analysis with your camera</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Camera Feed</h5>
+            </div>
+            <div class="card-body">
+                <div id="camera-container" class="text-center">
+                    <video id="video" width="640" height="480" autoplay style="border: 2px solid #ddd; border-radius: 8px;"></video>
+                    <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
+                </div>
+                <div class="mt-3 text-center">
+                    <button id="start-camera" class="btn btn-primary">Start Camera</button>
+                    <button id="stop-camera" class="btn btn-danger" disabled>Stop Camera</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">Exercise Selection</h5>
+            </div>
+            <div class="card-body">
+                <select id="exercise-select" class="form-select mb-3">
+                    <option value="">Select Exercise</option>
+                    <option value="push_ups">Push-ups</option>
+                    <option value="squats">Squats</option>
+                    <option value="lunges">Lunges</option>
+                </select>
+                <button id="start-workout" class="btn btn-success w-100" disabled>Start Workout</button>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">Live Stats</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h3 id="rep-count" class="text-primary">0</h3>
+                        <small>Reps</small>
+                    </div>
+                    <div class="col-6">
+                        <h3 id="accuracy" class="text-success">0%</h3>
+                        <small>Accuracy</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Live Feedback</h5>
+            </div>
+            <div class="card-body">
+                <div id="feedback" class="alert alert-info">
+                    Select an exercise and start your camera to begin
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Basic camera functionality - will be enhanced with MediaPipe later
+document.getElementById('start-camera').addEventListener('click', async function() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        document.getElementById('video').srcObject = stream;
+        document.getElementById('start-camera').disabled = true;
+        document.getElementById('stop-camera').disabled = false;
+        document.getElementById('start-workout').disabled = false;
+    } catch (err) {
+        alert('Error accessing camera: ' + err.message);
+    }
+});
+
+document.getElementById('stop-camera').addEventListener('click', function() {
+    const video = document.getElementById('video');
+    const stream = video.srcObject;
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        video.srcObject = null;
+    }
+    document.getElementById('start-camera').disabled = false;
+    document.getElementById('stop-camera').disabled = true;
+    document.getElementById('start-workout').disabled = true;
+});
+
+document.getElementById('start-workout').addEventListener('click', function() {
+    const exercise = document.getElementById('exercise-select').value;
+    if (!exercise) {
+        alert('Please select an exercise first');
+        return;
+    }
+    
+    document.getElementById('feedback').innerHTML = `
+        <strong>Workout Started!</strong><br>
+        Exercise: ${exercise.replace('_', ' ').toUpperCase()}<br>
+        <small>MediaPipe integration coming soon...</small>
+    `;
+    document.getElementById('feedback').className = 'alert alert-success';
+});
+</script>
+{% endblock %}

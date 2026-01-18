@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2>Recording Analysis</h2>
+        <p class="text-muted">Upload your workout video for detailed analysis</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Video Upload</h5>
+            </div>
+            <div class="card-body">
+                <form id="upload-form" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="video-file" class="form-label">Select Video File</label>
+                        <input type="file" class="form-control" id="video-file" accept="video/*" required>
+                        <div class="form-text">Supported formats: MP4, AVI, MOV, MKV (Max: 100MB)</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="exercise-select" class="form-label">Exercise Type (Optional)</label>
+                        <select id="exercise-select" class="form-select">
+                            <option value="">Auto-detect exercise</option>
+                            <option value="push_ups">Push-ups</option>
+                            <option value="squats">Squats</option>
+                            <option value="lunges">Lunges</option>
+                            <option value="burpees">Burpees</option>
+                        </select>
+                        <div class="form-text">Leave blank for automatic exercise detection</div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-upload"></i> Upload & Analyze
+                    </button>
+                </form>
+
+                <div id="upload-progress" class="mt-3" style="display: none;">
+                    <div class="progress">
+                        <div id="progress-bar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <small id="progress-text" class="text-muted">Uploading...</small>
+                </div>
+            </div>
+        </div>
+
+        <div id="video-preview" class="card mt-3" style="display: none;">
+            <div class="card-header">
+                <h5 class="mb-0">Video Preview</h5>
+            </div>
+            <div class="card-body">
+                <video id="preview-video" controls width="100%" style="max-height: 400px;"></video>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">Analysis Status</h5>
+            </div>
+            <div class="card-body">
+                <div id="status-content">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
+                        <p>Upload a video to start analysis</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Tips</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check text-success"></i> Ensure good lighting</li>
+                    <li><i class="fas fa-check text-success"></i> Full body visible in frame</li>
+                    <li><i class="fas fa-check text-success"></i> Stable camera position</li>
+                    <li><i class="fas fa-check text-success"></i> Clear view of exercise</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">What You'll Get</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-chart-bar text-primary"></i> Rep count & accuracy</li>
+                    <li><i class="fas fa-exclamation-triangle text-warning"></i> Form mistakes</li>
+                    <li><i class="fas fa-fire text-danger"></i> Calories burned</li>
+                    <li><i class="fas fa-file-pdf text-info"></i> Detailed PDF report</li>
+                    <li><i class="fas fa-robot text-success"></i> AI consultation</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('video-file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        // Show video preview
+        const video = document.getElementById('preview-video');
+        video.src = URL.createObjectURL(file);
+        document.getElementById('video-preview').style.display = 'block';
+        
+        // Validate file size
+        const maxSize = 100 * 1024 * 1024; // 100MB
+        if (file.size > maxSize) {
+            alert('File size too large. Maximum size is 100MB.');
+            e.target.value = '';
+            document.getElementById('video-preview').style.display = 'none';
+            return;
+        }
+    }
+});
+
+document.getElementById('upload-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const fileInput = document.getElementById('video-file');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('Please select a video file');
+        return;
+    }
+    
+    // Show progress
+    document.getElementById('upload-progress').style.display = 'block';
+    document.getElementById('status-content').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Uploading video...</p>
+        </div>
+    `;
+    
+    // Simulate upload progress (will be replaced with actual upload)
+    let progress = 0;
+    const interval = setInterval(() => {
+        progress += Math.random() * 15;
+        if (progress > 100) progress = 100;
+        
+        document.getElementById('progress-bar').style.width = progress + '%';
+        document.getElementById('progress-text').textContent = `Uploading... ${Math.round(progress)}%`;
+        
+        if (progress >= 100) {
+            clearInterval(interval);
+            document.getElementById('progress-text').textContent = 'Upload complete! Starting analysis...';
+            
+            setTimeout(() => {
+                document.getElementById('status-content').innerHTML = `
+                    <div class="alert alert-success">
+                        <strong>Upload Successful!</strong><br>
+                        Video analysis will be implemented in the next phase.
+                    </div>
+                `;
+            }, 1000);
+        }
+    }, 200);
+});
+</script>
+{% endblock %}

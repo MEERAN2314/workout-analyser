@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 text-center mb-5">
+        <h1 class="display-4">Welcome to Workout Analyzer</h1>
+        <p class="lead">AI-powered workout analysis with real-time feedback</p>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-5 mb-4">
+        <div class="card h-100 shadow">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="fas fa-video fa-3x text-primary"></i>
+                </div>
+                <h3 class="card-title">Live Analysis</h3>
+                <p class="card-text">
+                    Get real-time feedback on your workout form with live camera analysis. 
+                    Perfect for guided workouts and immediate corrections.
+                </p>
+                <ul class="list-unstyled text-start">
+                    <li>✓ Real-time rep counting</li>
+                    <li>✓ Live form feedback</li>
+                    <li>✓ Audio coaching</li>
+                    <li>✓ Instant results</li>
+                </ul>
+                <a href="/live" class="btn btn-primary btn-lg">Start Live Analysis</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-5 mb-4">
+        <div class="card h-100 shadow">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="fas fa-upload fa-3x text-success"></i>
+                </div>
+                <h3 class="card-title">Recording Analysis</h3>
+                <p class="card-text">
+                    Upload your workout videos for detailed analysis and comprehensive reports. 
+                    Get in-depth insights and improvement suggestions.
+                </p>
+                <ul class="list-unstyled text-start">
+                    <li>✓ Detailed form analysis</li>
+                    <li>✓ Mistake identification</li>
+                    <li>✓ PDF reports</li>
+                    <li>✓ AI consultation</li>
+                </ul>
+                <a href="/recording" class="btn btn-success btn-lg">Upload Video</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card bg-light">
+            <div class="card-body">
+                <h4 class="card-title">How It Works</h4>
+                <div class="row">
+                    <div class="col-md-4 text-center">
+                        <div class="mb-3">
+                            <i class="fas fa-dumbbell fa-2x text-primary"></i>
+                        </div>
+                        <h5>1. Choose Exercise</h5>
+                        <p>Select from our library of supported exercises or let our AI detect it automatically.</p>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <div class="mb-3">
+                            <i class="fas fa-eye fa-2x text-primary"></i>
+                        </div>
+                        <h5>2. AI Analysis</h5>
+                        <p>Our MediaPipe-powered AI analyzes your form, counts reps, and identifies areas for improvement.</p>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <div class="mb-3">
+                            <i class="fas fa-chart-line fa-2x text-primary"></i>
+                        </div>
+                        <h5>3. Get Results</h5>
+                        <p>Receive detailed feedback, performance metrics, and personalized recommendations.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://kit.fontawesome.com/your-fontawesome-kit.js" crossorigin="anonymous"></script>
+{% endblock %}
