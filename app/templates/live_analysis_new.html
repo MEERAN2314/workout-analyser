@@ -1,0 +1,1407 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+#camera-container {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+}
+
+#video {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+}
+
+#overlay-canvas {
+    position: absolute;
+    pointer-events: none;
+    border-radius: 6px;
+    z-index: 10;
+}
+
+/* Ensure proper mobile responsiveness */
+@media (max-width: 768px) {
+    #camera-container {
+        width: 100%;
+    }
+    
+    #video {
+        width: 100%;
+        max-width: 100%;
+    }
+}
+
+/* Skeleton animation for better visibility */
+@keyframes pulse {
+    0% { opacity: 0.8; }
+    50% { opacity: 1; }
+    100% { opacity: 0.8; }
+}
+
+.skeleton-point {
+    animation: pulse 2s infinite;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2>Live Workout Analysis</h2>
+        <p class="text-muted">AI-powered real-time workout tracking with pose detection</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Camera Feed</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <span id="fps-counter" class="badge bg-info">0 FPS</span>
+                    <span id="connection-status" class="badge bg-secondary">Disconnected</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="camera-container" class="position-relative text-center" style="display: inline-block;">
+                    <video id="video" width="640" height="480" autoplay playsinline muted 
+                           style="border: 2px solid #ddd; border-radius: 8px; max-width: 100%; height: auto; display: block;"></video>
+                    <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
+                    <canvas id="overlay-canvas" width="640" height="480" 
+                            style="position: absolute; top: 2px; left: 2px; 
+                                   pointer-events: none; border-radius: 8px; 
+                                   max-width: calc(100% - 4px); height: auto;"></canvas>
+                </div>
+                
+                <!-- Camera Controls -->
+                <div class="mt-3 text-center">
+                    <div class="btn-group mb-2" role="group">
+                        <button id="start-camera" class="btn btn-primary">
+                            <i class="fas fa-video"></i> Start Camera
+                        </button>
+                        <button id="switch-camera" class="btn btn-outline-primary" disabled>
+                            <i class="fas fa-camera-rotate"></i> Switch
+                        </button>
+                        <button id="stop-camera" class="btn btn-danger" disabled>
+                            <i class="fas fa-video-slash"></i> Stop
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mt-2 text-center">
+                    <small id="camera-info" class="text-muted">Click Start Camera to begin</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Exercise Instructions -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Exercise Instructions</h5>
+            </div>
+            <div class="card-body">
+                <div id="exercise-instructions" class="text-muted">
+                    Select an exercise to see instructions
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Exercise Selection -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">Exercise Selection</h5>
+            </div>
+            <div class="card-body">
+                <select id="exercise-select" class="form-select mb-3">
+                    <option value="">Select Exercise</option>
+                    <option value="push_ups">Push-ups</option>
+                    <option value="squats">Squats</option>
+                    <option value="bicep_curls">Bicep Curls</option>
+                </select>
+                <button id="start-workout" class="btn btn-success w-100" disabled>
+                    <i class="fas fa-play"></i> Start Workout
+                </button>
+                <button id="end-workout" class="btn btn-warning w-100 mt-2" disabled>
+                    <i class="fas fa-stop"></i> End Workout
+                </button>
+            </div>
+        </div>
+
+        <!-- Live Stats -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">Live Stats</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h2 id="rep-count" class="text-primary mb-0">0</h2>
+                        <small class="text-muted">Reps</small>
+                    </div>
+                    <div class="col-4">
+                        <h2 id="accuracy" class="text-success mb-0">0%</h2>
+                        <small class="text-muted">Accuracy</small>
+                    </div>
+                    <div class="col-4">
+                        <h2 id="phase" class="text-info mb-0">Ready</h2>
+                        <small class="text-muted">Phase</small>
+                    </div>
+                </div>
+                <div class="mt-3 text-center">
+                    <div class="row">
+                        <div class="col-6">
+                            <small class="text-muted">Duration</small>
+                            <div id="duration" class="fw-bold">00:00</div>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Calories</small>
+                            <div id="calories" class="fw-bold">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Feedback -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">Live Feedback</h5>
+            </div>
+            <div class="card-body">
+                <div id="current-feedback" class="alert alert-info mb-2">
+                    Select an exercise and start your camera
+                </div>
+                <div id="feedback-history" style="max-height: 150px; overflow-y: auto;">
+                    <!-- Feedback history will appear here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Settings</h5>
+            </div>
+            <div class="card-body">
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" id="show-skeleton" checked>
+                    <label class="form-check-label" for="show-skeleton">
+                        Show Skeleton
+                    </label>
+                </div>
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" id="voice-feedback">
+                    <label class="form-check-label" for="voice-feedback">
+                        Voice Feedback
+                    </label>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="mirror-mode" checked>
+                    <label class="form-check-label" for="mirror-mode">
+                        Mirror Mode
+                    </label>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="debug-mode">
+                    <label class="form-check-label" for="debug-mode">
+                        Debug Alignment
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Session Complete Modal -->
+<div class="modal fade" id="sessionCompleteModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-trophy text-warning"></i> Workout Complete!
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="final-stats" class="text-center">
+                    <!-- Final statistics will be populated here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="startNewWorkout()">
+                    <i class="fas fa-redo"></i> Start New Workout
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+class WorkoutAnalyzer {
+    constructor() {
+        // DOM elements
+        this.video = document.getElementById('video');
+        this.canvas = document.getElementById('canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.overlayCanvas = document.getElementById('overlay-canvas');
+        this.overlayCtx = this.overlayCanvas.getContext('2d');
+        
+        // State management
+        this.websocket = null;
+        this.sessionId = null;
+        this.isWorkoutActive = false;
+        this.currentStream = null;
+        this.frameInterval = null;
+        this.startTime = null;
+        this.durationInterval = null;
+        this.fpsInterval = null;
+        
+        // Camera management
+        this.availableCameras = [];
+        this.currentCameraIndex = 0;
+        this.isMobile = this.detectMobile();
+        
+        // Settings
+        this.settings = {
+            showSkeleton: true,
+            voiceFeedback: false,
+            mirrorMode: true,
+            debugMode: false,
+            frameRate: 10 // FPS
+        };
+        
+        // Performance tracking
+        this.frameCount = 0;
+        this.lastFpsTime = Date.now();
+        
+        // Exercise data
+        this.exerciseInstructions = {
+            'push_ups': [
+                '1. Start in plank position with hands shoulder-width apart',
+                '2. Keep your body in a straight line from head to heels',
+                '3. Lower your chest until it nearly touches the ground',
+                '4. Push back up to starting position',
+                '5. Keep core engaged throughout the movement'
+            ],
+            'squats': [
+                '1. Stand with feet shoulder-width apart',
+                '2. Keep your chest up and back straight',
+                '3. Lower by bending hips and knees',
+                '4. Descend until thighs are parallel to ground',
+                '5. Push through heels to return to start'
+            ],
+            'bicep_curls': [
+                '1. Stand with feet hip-width apart',
+                '2. Hold weights with arms at your sides',
+                '3. Keep elbows close to your torso',
+                '4. Curl weights up by contracting biceps',
+                '5. Lower with control to starting position'
+            ]
+        };
+        
+        this.init();
+    }
+    
+    async init() {
+        console.log('Initializing Workout Analyzer...');
+        this.setupEventListeners();
+        await this.detectCameras();
+        this.updateUI();
+        console.log('Workout Analyzer initialized successfully');
+    }
+    
+    detectMobile() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+    
+    setupEventListeners() {
+        // Camera controls
+        document.getElementById('start-camera').addEventListener('click', () => this.startCamera());
+        document.getElementById('switch-camera').addEventListener('click', () => this.switchCamera());
+        document.getElementById('stop-camera').addEventListener('click', () => this.stopCamera());
+        
+        // Workout controls
+        document.getElementById('start-workout').addEventListener('click', () => this.startWorkout());
+        document.getElementById('end-workout').addEventListener('click', () => this.endWorkout());
+        
+        // Exercise selection
+        document.getElementById('exercise-select').addEventListener('change', (e) => {
+            this.updateExerciseInstructions(e.target.value);
+            this.updateStartButton();
+        });
+        
+        // Settings
+        document.getElementById('show-skeleton').addEventListener('change', (e) => {
+            this.settings.showSkeleton = e.target.checked;
+        });
+        
+        document.getElementById('voice-feedback').addEventListener('change', (e) => {
+            this.settings.voiceFeedback = e.target.checked;
+        });
+        
+        document.getElementById('mirror-mode').addEventListener('change', (e) => {
+            this.settings.mirrorMode = e.target.checked;
+            this.updateVideoMirror();
+        });
+        
+        document.getElementById('debug-mode').addEventListener('change', (e) => {
+            this.settings.debugMode = e.target.checked;
+        });
+        
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && this.isWorkoutActive) {
+                this.pauseWorkout();
+            } else if (!document.hidden && this.isWorkoutActive) {
+                this.resumeWorkout();
+            }
+        });
+        
+        // Handle window resize and orientation changes
+        window.addEventListener('resize', () => {
+            setTimeout(() => {
+                if (this.currentStream) {
+                    this.syncOverlayWithVideo();
+                }
+            }, 100);
+        });
+        
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                if (this.currentStream) {
+                    this.syncOverlayWithVideo();
+                }
+            }, 500); // Longer delay for orientation change
+        });
+    }
+    
+    async detectCameras() {
+        try {
+            console.log('Detecting cameras...');
+            
+            if (this.isMobile) {
+                // For mobile, we need to try both facing modes to see what's available
+                this.availableCameras = [];
+                
+                // Try to detect actual cameras first
+                if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                    try {
+                        // Request permission first
+                        await navigator.mediaDevices.getUserMedia({ video: true });
+                        
+                        const devices = await navigator.mediaDevices.enumerateDevices();
+                        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                        
+                        if (videoDevices.length > 0) {
+                            // Use actual device IDs for mobile
+                            this.availableCameras = videoDevices.map((device, index) => ({
+                                deviceId: device.deviceId,
+                                label: device.label || `Camera ${index + 1}`,
+                                facingMode: index === 0 ? 'user' : 'environment' // Guess facing mode
+                            }));
+                            console.log('Mobile cameras detected:', this.availableCameras);
+                        }
+                    } catch (enumError) {
+                        console.warn('Could not enumerate mobile devices:', enumError);
+                    }
+                }
+                
+                // Fallback to facingMode if device enumeration failed
+                if (this.availableCameras.length === 0) {
+                    this.availableCameras = [
+                        { 
+                            deviceId: 'front', 
+                            label: 'Front Camera', 
+                            facingMode: 'user' 
+                        },
+                        { 
+                            deviceId: 'back', 
+                            label: 'Back Camera', 
+                            facingMode: 'environment' 
+                        }
+                    ];
+                    console.log('Using fallback mobile cameras');
+                }
+            } else {
+                // Desktop camera detection
+                if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                    
+                    if (videoDevices.length > 0) {
+                        this.availableCameras = videoDevices.map((device, index) => ({
+                            deviceId: device.deviceId,
+                            label: device.label || `Camera ${index + 1}`
+                        }));
+                    } else {
+                        this.availableCameras = [{ deviceId: 'default', label: 'Default Camera' }];
+                    }
+                } else {
+                    this.availableCameras = [{ deviceId: 'default', label: 'Default Camera' }];
+                }
+                console.log('Desktop cameras detected:', this.availableCameras);
+            }
+            
+            this.updateCameraInfo();
+            
+        } catch (error) {
+            console.error('Error detecting cameras:', error);
+            // Fallback cameras
+            if (this.isMobile) {
+                this.availableCameras = [
+                    { deviceId: 'front', label: 'Front Camera', facingMode: 'user' },
+                    { deviceId: 'back', label: 'Back Camera', facingMode: 'environment' }
+                ];
+            } else {
+                this.availableCameras = [{ deviceId: 'default', label: 'Default Camera' }];
+            }
+            this.updateCameraInfo();
+        }
+    }
+    
+    updateCameraInfo() {
+        const cameraInfo = document.getElementById('camera-info');
+        if (this.availableCameras.length === 0) {
+            cameraInfo.textContent = 'No cameras available';
+            return;
+        }
+        
+        const current = this.availableCameras[this.currentCameraIndex];
+        const total = this.availableCameras.length;
+        cameraInfo.textContent = `${current.label} (${this.currentCameraIndex + 1}/${total})`;
+        
+        // Enable/disable switch button
+        const switchBtn = document.getElementById('switch-camera');
+        switchBtn.disabled = total <= 1 || !this.currentStream;
+    }
+    
+    async startCamera() {
+        try {
+            console.log('Starting camera...');
+            this.updateFeedback('Starting camera...', 'info');
+            
+            const constraints = this.getCameraConstraints();
+            console.log('Camera constraints:', constraints);
+            
+            try {
+                this.currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+            } catch (constraintError) {
+                console.warn('Constraint failed, trying fallback:', constraintError);
+                
+                // Fallback for mobile
+                if (this.isMobile) {
+                    const fallbackConstraints = {
+                        video: {
+                            facingMode: 'user', // Start with front camera
+                            width: { ideal: 640 },
+                            height: { ideal: 480 }
+                        }
+                    };
+                    console.log('Trying mobile fallback constraints:', fallbackConstraints);
+                    this.currentStream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+                } else {
+                    // Simple fallback for desktop
+                    this.currentStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                }
+            }
+            
+            this.video.srcObject = this.currentStream;
+            
+            // Wait for video to load
+            await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    reject(new Error('Video load timeout'));
+                }, 10000);
+                
+                this.video.onloadedmetadata = () => {
+                    clearTimeout(timeout);
+                    console.log('Video metadata loaded');
+                    this.video.play()
+                        .then(() => {
+                            console.log('Video playing');
+                            // Sync overlay after video starts playing
+                            setTimeout(() => {
+                                this.syncOverlayWithVideo();
+                            }, 100);
+                            resolve();
+                        })
+                        .catch(reject);
+                };
+                
+                this.video.onerror = (error) => {
+                    clearTimeout(timeout);
+                    reject(error);
+                };
+            });
+            
+            // Update UI
+            document.getElementById('start-camera').disabled = true;
+            document.getElementById('stop-camera').disabled = false;
+            this.updateCameraInfo();
+            this.updateStartButton();
+            this.updateVideoMirror();
+            
+            this.updateFeedback('Camera started successfully!', 'success');
+            console.log('Camera started successfully');
+            
+        } catch (error) {
+            console.error('Camera start error:', error);
+            this.handleCameraError(error);
+        }
+    }
+    
+    getCameraConstraints() {
+        const current = this.availableCameras[this.currentCameraIndex];
+        
+        const baseConstraints = {
+            video: {
+                width: { ideal: 640, max: 1280 },
+                height: { ideal: 480, max: 720 }
+            }
+        };
+        
+        if (this.isMobile) {
+            if (current.facingMode) {
+                // Use facingMode for mobile
+                baseConstraints.video.facingMode = current.facingMode;
+                console.log('Using facingMode:', current.facingMode);
+            } else if (current.deviceId && current.deviceId !== 'front' && current.deviceId !== 'back') {
+                // Use specific device ID if available
+                baseConstraints.video.deviceId = { exact: current.deviceId };
+                console.log('Using mobile deviceId:', current.deviceId);
+            }
+        } else if (current.deviceId && current.deviceId !== 'default') {
+            // Desktop: use specific device ID
+            baseConstraints.video.deviceId = { exact: current.deviceId };
+            console.log('Using desktop deviceId:', current.deviceId);
+        }
+        
+        return baseConstraints;
+    }
+    
+    async switchCamera() {
+        if (this.availableCameras.length <= 1) {
+            this.updateFeedback('Only one camera available', 'info');
+            return;
+        }
+        
+        try {
+            console.log('Switching camera from index', this.currentCameraIndex);
+            this.updateFeedback('Switching camera...', 'info');
+            
+            // Stop current stream
+            if (this.currentStream) {
+                this.currentStream.getTracks().forEach(track => track.stop());
+                this.currentStream = null;
+            }
+            
+            // Switch to next camera
+            const previousIndex = this.currentCameraIndex;
+            this.currentCameraIndex = (this.currentCameraIndex + 1) % this.availableCameras.length;
+            
+            console.log('Switching to camera index', this.currentCameraIndex);
+            
+            // Get constraints for new camera
+            const constraints = this.getCameraConstraints();
+            console.log('New camera constraints:', constraints);
+            
+            try {
+                // Try to start new camera
+                this.currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                this.video.srcObject = this.currentStream;
+                
+                // Wait for video to load
+                await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('Video load timeout'));
+                    }, 5000);
+                    
+                    this.video.onloadedmetadata = () => {
+                        clearTimeout(timeout);
+                        this.video.play().then(() => {
+                            // Sync overlay after video starts
+                            setTimeout(() => {
+                                this.syncOverlayWithVideo();
+                            }, 100);
+                            resolve();
+                        }).catch(reject);
+                    };
+                });
+                
+                this.updateCameraInfo();
+                this.updateVideoMirror();
+                
+                const current = this.availableCameras[this.currentCameraIndex];
+                this.updateFeedback(`Switched to: ${current.label}`, 'success');
+                console.log('Camera switch successful');
+                
+            } catch (switchError) {
+                console.error('Failed to switch to new camera:', switchError);
+                
+                // Revert to previous camera
+                this.currentCameraIndex = previousIndex;
+                
+                // Try fallback approach for mobile
+                if (this.isMobile) {
+                    console.log('Trying mobile fallback...');
+                    const fallbackConstraints = {
+                        video: {
+                            facingMode: this.currentCameraIndex === 0 ? 'environment' : 'user'
+                        }
+                    };
+                    
+                    try {
+                        this.currentStream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+                        this.video.srcObject = this.currentStream;
+                        
+                        await new Promise((resolve) => {
+                            this.video.onloadedmetadata = () => {
+                                this.video.play().then(resolve).catch(resolve);
+                            };
+                        });
+                        
+                        // Update camera index to reflect the actual switch
+                        this.currentCameraIndex = (this.currentCameraIndex + 1) % this.availableCameras.length;
+                        this.updateCameraInfo();
+                        this.updateVideoMirror();
+                        
+                        this.updateFeedback('Camera switched (fallback mode)', 'warning');
+                        
+                    } catch (fallbackError) {
+                        console.error('Fallback camera switch failed:', fallbackError);
+                        this.updateFeedback('Camera switch failed: ' + fallbackError.message, 'danger');
+                        
+                        // Try to restart original camera
+                        setTimeout(() => this.startCamera(), 1000);
+                    }
+                } else {
+                    this.updateFeedback('Camera switch failed: ' + switchError.message, 'danger');
+                    setTimeout(() => this.startCamera(), 1000);
+                }
+            }
+            
+        } catch (error) {
+            console.error('Camera switch error:', error);
+            this.updateFeedback('Failed to switch camera: ' + error.message, 'danger');
+        }
+    }
+    
+    stopCamera() {
+        console.log('Stopping camera...');
+        
+        if (this.currentStream) {
+            this.currentStream.getTracks().forEach(track => track.stop());
+            this.video.srcObject = null;
+            this.currentStream = null;
+        }
+        
+        // Update UI
+        document.getElementById('start-camera').disabled = false;
+        document.getElementById('stop-camera').disabled = true;
+        this.updateCameraInfo();
+        this.updateStartButton();
+        
+        this.updateFeedback('Camera stopped', 'info');
+    }
+    
+    updateVideoMirror() {
+        const container = document.getElementById('camera-container');
+        const video = this.video;
+        const overlay = this.overlayCanvas;
+        
+        if (this.settings.mirrorMode && this.isMobile && 
+            this.availableCameras[this.currentCameraIndex]?.facingMode === 'user') {
+            video.style.transform = 'scaleX(-1)';
+            overlay.style.transform = 'scaleX(-1)';
+        } else {
+            video.style.transform = '';
+            overlay.style.transform = '';
+        }
+        
+        // Ensure overlay matches video dimensions exactly
+        this.syncOverlayWithVideo();
+    }
+    
+    syncOverlayWithVideo() {
+        // Simple approach: make overlay exactly match video element
+        const videoStyle = window.getComputedStyle(this.video);
+        const videoRect = this.video.getBoundingClientRect();
+        const containerRect = document.getElementById('camera-container').getBoundingClientRect();
+        
+        // Position overlay to exactly match video position
+        this.overlayCanvas.style.position = 'absolute';
+        this.overlayCanvas.style.left = '2px'; // Account for video border
+        this.overlayCanvas.style.top = '2px';  // Account for video border
+        this.overlayCanvas.style.width = `${this.video.offsetWidth}px`;
+        this.overlayCanvas.style.height = `${this.video.offsetHeight}px`;
+        this.overlayCanvas.style.borderRadius = '6px'; // Slightly smaller than video border radius
+        
+        console.log('Overlay synced - Video size:', {
+            width: this.video.offsetWidth,
+            height: this.video.offsetHeight,
+            videoWidth: this.video.videoWidth,
+            videoHeight: this.video.videoHeight
+        });
+        
+        // Debug: Draw alignment markers (remove in production)
+        if (this.settings.debugMode) {
+            this.drawAlignmentMarkers();
+        }
+    }
+    
+    drawAlignmentMarkers() {
+        // Draw corner markers to verify alignment
+        this.overlayCtx.strokeStyle = '#ff00ff';
+        this.overlayCtx.lineWidth = 2;
+        
+        // Top-left corner
+        this.overlayCtx.beginPath();
+        this.overlayCtx.moveTo(10, 10);
+        this.overlayCtx.lineTo(30, 10);
+        this.overlayCtx.moveTo(10, 10);
+        this.overlayCtx.lineTo(10, 30);
+        this.overlayCtx.stroke();
+        
+        // Top-right corner
+        this.overlayCtx.beginPath();
+        this.overlayCtx.moveTo(610, 10);
+        this.overlayCtx.lineTo(630, 10);
+        this.overlayCtx.moveTo(630, 10);
+        this.overlayCtx.lineTo(630, 30);
+        this.overlayCtx.stroke();
+        
+        // Bottom-left corner
+        this.overlayCtx.beginPath();
+        this.overlayCtx.moveTo(10, 450);
+        this.overlayCtx.lineTo(30, 450);
+        this.overlayCtx.moveTo(10, 450);
+        this.overlayCtx.lineTo(10, 470);
+        this.overlayCtx.stroke();
+        
+        // Bottom-right corner
+        this.overlayCtx.beginPath();
+        this.overlayCtx.moveTo(610, 450);
+        this.overlayCtx.lineTo(630, 450);
+        this.overlayCtx.moveTo(630, 450);
+        this.overlayCtx.lineTo(630, 470);
+        this.overlayCtx.stroke();
+    }
+    
+    handleCameraError(error) {
+        let message = 'Camera access failed: ';
+        
+        switch (error.name) {
+            case 'NotAllowedError':
+                message += 'Permission denied. Please allow camera access and refresh.';
+                break;
+            case 'NotFoundError':
+                message += 'No camera found. Please connect a camera.';
+                break;
+            case 'NotReadableError':
+                message += 'Camera is being used by another application.';
+                break;
+            case 'OverconstrainedError':
+                message += 'Camera constraints not supported. Trying fallback...';
+                this.tryFallbackCamera();
+                return;
+            case 'NotSecureError':
+                message += 'Camera requires HTTPS. Please use a secure connection.';
+                break;
+            default:
+                message += error.message || 'Unknown error occurred.';
+        }
+        
+        this.updateFeedback(message, 'danger');
+    }
+    
+    async tryFallbackCamera() {
+        try {
+            console.log('Trying fallback camera...');
+            const fallbackConstraints = { video: true };
+            
+            this.currentStream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+            this.video.srcObject = this.currentStream;
+            
+            await new Promise((resolve) => {
+                this.video.onloadedmetadata = () => {
+                    this.video.play().then(resolve).catch(resolve);
+                };
+            });
+            
+            document.getElementById('start-camera').disabled = true;
+            document.getElementById('stop-camera').disabled = false;
+            this.updateStartButton();
+            
+            this.updateFeedback('Camera started with fallback settings', 'warning');
+            
+        } catch (fallbackError) {
+            console.error('Fallback camera failed:', fallbackError);
+            this.updateFeedback('All camera options failed: ' + fallbackError.message, 'danger');
+        }
+    }
+    
+    updateExerciseInstructions(exercise) {
+        const instructionsDiv = document.getElementById('exercise-instructions');
+        
+        if (!exercise || !this.exerciseInstructions[exercise]) {
+            instructionsDiv.innerHTML = '<em class="text-muted">Select an exercise to see instructions</em>';
+            return;
+        }
+        
+        const instructions = this.exerciseInstructions[exercise];
+        const html = instructions.map(instruction => 
+            `<div class="mb-1"><i class="fas fa-check-circle text-success me-2"></i>${instruction}</div>`
+        ).join('');
+        
+        instructionsDiv.innerHTML = html;
+    }
+    
+    updateStartButton() {
+        const startBtn = document.getElementById('start-workout');
+        const exercise = document.getElementById('exercise-select').value;
+        const hasCamera = !!this.currentStream;
+        
+        startBtn.disabled = !exercise || !hasCamera || this.isWorkoutActive;
+        
+        if (!exercise) {
+            startBtn.innerHTML = '<i class="fas fa-play"></i> Select Exercise First';
+        } else if (!hasCamera) {
+            startBtn.innerHTML = '<i class="fas fa-play"></i> Start Camera First';
+        } else if (this.isWorkoutActive) {
+            startBtn.innerHTML = '<i class="fas fa-play"></i> Workout Active';
+        } else {
+            startBtn.innerHTML = '<i class="fas fa-play"></i> Start Workout';
+        }
+    }
+    
+    async startWorkout() {
+        const exercise = document.getElementById('exercise-select').value;
+        
+        if (!exercise) {
+            this.updateFeedback('Please select an exercise first', 'warning');
+            return;
+        }
+        
+        if (!this.currentStream) {
+            this.updateFeedback('Please start camera first', 'warning');
+            return;
+        }
+        
+        try {
+            console.log('Starting workout:', exercise);
+            this.updateFeedback('Starting workout...', 'info');
+            
+            // Create session on server
+            const response = await fetch('/live/start-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    exercise_name: exercise,
+                    user_id: 'demo_user'
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            this.sessionId = data.session_id;
+            
+            // Connect WebSocket
+            await this.connectWebSocket();
+            
+            // Start workout
+            this.isWorkoutActive = true;
+            this.startTime = Date.now();
+            this.frameCount = 0;
+            this.lastFpsTime = Date.now();
+            
+            // Start intervals
+            this.startFrameCapture();
+            this.startDurationTimer();
+            this.startFpsCounter();
+            
+            // Update UI
+            document.getElementById('start-workout').disabled = true;
+            document.getElementById('end-workout').disabled = false;
+            document.getElementById('exercise-select').disabled = true;
+            document.getElementById('switch-camera').disabled = true;
+            
+            this.updateFeedback(`Workout started! Exercise: ${exercise.replace('_', ' ')}`, 'success');
+            
+        } catch (error) {
+            console.error('Workout start error:', error);
+            this.updateFeedback('Failed to start workout: ' + error.message, 'danger');
+        }
+    }
+    
+    async connectWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/live/ws/${this.sessionId}`;
+        
+        console.log('Connecting WebSocket:', wsUrl);
+        
+        return new Promise((resolve, reject) => {
+            this.websocket = new WebSocket(wsUrl);
+            
+            this.websocket.onopen = () => {
+                console.log('WebSocket connected');
+                document.getElementById('connection-status').textContent = 'Connected';
+                document.getElementById('connection-status').className = 'badge bg-success';
+                resolve();
+            };
+            
+            this.websocket.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    this.handleWebSocketMessage(message);
+                } catch (error) {
+                    console.error('WebSocket message parse error:', error);
+                }
+            };
+            
+            this.websocket.onclose = () => {
+                console.log('WebSocket closed');
+                document.getElementById('connection-status').textContent = 'Disconnected';
+                document.getElementById('connection-status').className = 'badge bg-danger';
+            };
+            
+            this.websocket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                reject(error);
+            };
+            
+            // Timeout
+            setTimeout(() => {
+                if (this.websocket.readyState !== WebSocket.OPEN) {
+                    reject(new Error('WebSocket connection timeout'));
+                }
+            }, 10000);
+        });
+    }
+    
+    handleWebSocketMessage(message) {
+        switch (message.type) {
+            case 'connected':
+                this.updateFeedback(message.data.message, 'success');
+                break;
+                
+            case 'analysis_result':
+                this.updateStats(message.data);
+                if (this.settings.showSkeleton && message.data.landmarks) {
+                    this.drawSkeleton(message.data.landmarks);
+                }
+                break;
+                
+            case 'feedback':
+                this.addFeedbackToHistory(message.data.feedback);
+                if (this.settings.voiceFeedback) {
+                    this.speakFeedback(message.data.feedback);
+                }
+                break;
+                
+            case 'rep_update':
+                this.updateRepCount(message.data.rep_count, message.data.current_phase);
+                break;
+                
+            case 'session_complete':
+                this.handleSessionComplete(message.data);
+                break;
+                
+            case 'error':
+                this.updateFeedback('Error: ' + message.data.message, 'danger');
+                break;
+        }
+    }
+    
+    startFrameCapture() {
+        const frameDelay = 1000 / this.settings.frameRate; // Convert FPS to milliseconds
+        
+        this.frameInterval = setInterval(() => {
+            if (this.isWorkoutActive && this.websocket && 
+                this.websocket.readyState === WebSocket.OPEN) {
+                this.captureAndSendFrame();
+                
+                // Periodically sync overlay (every 30 frames)
+                if (this.frameCount % 30 === 0) {
+                    this.syncOverlayWithVideo();
+                }
+            }
+        }, frameDelay);
+    }
+    
+    captureAndSendFrame() {
+        try {
+            // Clear canvas
+            this.ctx.clearRect(0, 0, 640, 480);
+            
+            // Draw video frame
+            this.ctx.drawImage(this.video, 0, 0, 640, 480);
+            
+            // Convert to base64
+            const imageData = this.canvas.toDataURL('image/jpeg', 0.7);
+            
+            // Send to server
+            this.websocket.send(JSON.stringify({
+                type: 'frame',
+                data: {
+                    image: imageData,
+                    timestamp: Date.now(),
+                    camera_info: {
+                        index: this.currentCameraIndex,
+                        label: this.availableCameras[this.currentCameraIndex]?.label
+                    }
+                }
+            }));
+            
+            this.frameCount++;
+            
+        } catch (error) {
+            console.error('Frame capture error:', error);
+        }
+    }
+    
+    updateStats(data) {
+        document.getElementById('rep-count').textContent = data.rep_count || 0;
+        document.getElementById('accuracy').textContent = Math.round((data.accuracy_score || 0) * 100) + '%';
+        document.getElementById('phase').textContent = data.current_phase || 'Ready';
+        
+        // Update accuracy color
+        const accuracyElement = document.getElementById('accuracy');
+        const accuracy = data.accuracy_score || 0;
+        
+        if (accuracy >= 0.8) {
+            accuracyElement.className = 'text-success mb-0';
+        } else if (accuracy >= 0.6) {
+            accuracyElement.className = 'text-warning mb-0';
+        } else {
+            accuracyElement.className = 'text-danger mb-0';
+        }
+        
+        // Update calories (rough estimate)
+        const duration = this.startTime ? (Date.now() - this.startTime) / 1000 / 60 : 0;
+        const calories = Math.round(duration * 5); // 5 calories per minute estimate
+        document.getElementById('calories').textContent = calories;
+    }
+    
+    updateRepCount(repCount, phase) {
+        document.getElementById('rep-count').textContent = repCount;
+        document.getElementById('phase').textContent = phase;
+    }
+    
+    drawSkeleton(landmarks) {
+        if (!this.settings.showSkeleton || !landmarks) return;
+        
+        // Get the actual display dimensions of the video
+        const videoRect = this.video.getBoundingClientRect();
+        const canvasRect = this.overlayCanvas.getBoundingClientRect();
+        
+        // Calculate scaling factors based on actual video display size
+        const scaleX = canvasRect.width / 640;  // Canvas logical width
+        const scaleY = canvasRect.height / 480; // Canvas logical height
+        
+        // Clear overlay with proper dimensions
+        this.overlayCtx.clearRect(0, 0, 640, 480);
+        
+        // Set drawing style for better visibility
+        this.overlayCtx.strokeStyle = '#00ff00';
+        this.overlayCtx.fillStyle = '#ff0000';
+        this.overlayCtx.lineWidth = 4;
+        this.overlayCtx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        this.overlayCtx.shadowBlur = 3;
+        
+        // Draw connections first
+        const connections = [
+            ['left_shoulder', 'right_shoulder'],
+            ['left_shoulder', 'left_elbow'],
+            ['left_elbow', 'left_wrist'],
+            ['right_shoulder', 'right_elbow'],
+            ['right_elbow', 'right_wrist'],
+            ['left_shoulder', 'left_hip'],
+            ['right_shoulder', 'right_hip'],
+            ['left_hip', 'right_hip'],
+            ['left_hip', 'left_knee'],
+            ['left_knee', 'left_ankle'],
+            ['right_hip', 'right_knee'],
+            ['right_knee', 'right_ankle']
+        ];
+        
+        // Draw skeleton connections
+        this.overlayCtx.strokeStyle = '#00ff00';
+        this.overlayCtx.lineWidth = 4;
+        
+        connections.forEach(([start, end]) => {
+            if (landmarks[start] && landmarks[end] && 
+                landmarks[start].visibility > 0.5 && landmarks[end].visibility > 0.5) {
+                
+                // Convert normalized coordinates to canvas coordinates
+                const startX = landmarks[start].x * 640;
+                const startY = landmarks[start].y * 480;
+                const endX = landmarks[end].x * 640;
+                const endY = landmarks[end].y * 480;
+                
+                this.overlayCtx.beginPath();
+                this.overlayCtx.moveTo(startX, startY);
+                this.overlayCtx.lineTo(endX, endY);
+                this.overlayCtx.stroke();
+            }
+        });
+        
+        // Draw landmark points on top
+        Object.entries(landmarks).forEach(([name, landmark]) => {
+            if (landmark.visibility > 0.6) {
+                const x = landmark.x * 640;
+                const y = landmark.y * 480;
+                
+                // Different colors for different body parts
+                let color = '#ff0000'; // Default red
+                
+                if (name.includes('shoulder') || name.includes('elbow') || name.includes('wrist')) {
+                    color = '#0080ff'; // Blue for arms
+                } else if (name.includes('hip') || name.includes('knee') || name.includes('ankle')) {
+                    color = '#ff8000'; // Orange for legs
+                } else if (name.includes('eye') || name.includes('ear') || name === 'nose') {
+                    color = '#ffff00'; // Yellow for face
+                }
+                
+                // Draw main point
+                this.overlayCtx.fillStyle = color;
+                this.overlayCtx.beginPath();
+                this.overlayCtx.arc(x, y, 8, 0, 2 * Math.PI);
+                this.overlayCtx.fill();
+                
+                // Draw white border for better visibility
+                this.overlayCtx.strokeStyle = '#ffffff';
+                this.overlayCtx.lineWidth = 3;
+                this.overlayCtx.beginPath();
+                this.overlayCtx.arc(x, y, 8, 0, 2 * Math.PI);
+                this.overlayCtx.stroke();
+                
+                // Draw black outline for maximum contrast
+                this.overlayCtx.strokeStyle = '#000000';
+                this.overlayCtx.lineWidth = 1;
+                this.overlayCtx.beginPath();
+                this.overlayCtx.arc(x, y, 10, 0, 2 * Math.PI);
+                this.overlayCtx.stroke();
+            }
+        });
+        
+        console.log('Skeleton drawn with', Object.keys(landmarks).length, 'landmarks');
+    }
+    
+    addFeedbackToHistory(feedback) {
+        const historyDiv = document.getElementById('feedback-history');
+        
+        feedback.forEach(item => {
+            const feedbackItem = document.createElement('div');
+            feedbackItem.className = 'alert alert-warning alert-sm py-1 px-2 mb-1';
+            feedbackItem.innerHTML = `<small><i class="fas fa-info-circle me-1"></i>${item}</small>`;
+            historyDiv.appendChild(feedbackItem);
+        });
+        
+        // Update current feedback
+        if (feedback.length > 0) {
+            const currentFeedback = document.getElementById('current-feedback');
+            currentFeedback.textContent = feedback[feedback.length - 1];
+            currentFeedback.className = 'alert alert-warning mb-2';
+        }
+        
+        // Scroll to bottom
+        historyDiv.scrollTop = historyDiv.scrollHeight;
+        
+        // Keep only last 5 feedback items
+        while (historyDiv.children.length > 5) {
+            historyDiv.removeChild(historyDiv.firstChild);
+        }
+    }
+    
+    speakFeedback(feedback) {
+        if (!this.settings.voiceFeedback || !('speechSynthesis' in window)) return;
+        
+        // Speak the latest feedback
+        if (feedback.length > 0) {
+            const utterance = new SpeechSynthesisUtterance(feedback[feedback.length - 1]);
+            utterance.rate = 0.8;
+            utterance.volume = 0.7;
+            speechSynthesis.speak(utterance);
+        }
+    }
+    
+    startDurationTimer() {
+        this.durationInterval = setInterval(() => {
+            if (this.startTime) {
+                const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                document.getElementById('duration').textContent = 
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }, 1000);
+    }
+    
+    startFpsCounter() {
+        this.fpsInterval = setInterval(() => {
+            const now = Date.now();
+            const elapsed = (now - this.lastFpsTime) / 1000;
+            const fps = Math.round(this.frameCount / elapsed);
+            
+            document.getElementById('fps-counter').textContent = `${fps} FPS`;
+            
+            // Reset counters
+            this.frameCount = 0;
+            this.lastFpsTime = now;
+        }, 2000); // Update every 2 seconds
+    }
+    
+    async endWorkout() {
+        console.log('Ending workout...');
+        
+        this.isWorkoutActive = false;
+        
+        // Clear intervals
+        if (this.frameInterval) {
+            clearInterval(this.frameInterval);
+            this.frameInterval = null;
+        }
+        
+        if (this.durationInterval) {
+            clearInterval(this.durationInterval);
+            this.durationInterval = null;
+        }
+        
+        if (this.fpsInterval) {
+            clearInterval(this.fpsInterval);
+            this.fpsInterval = null;
+        }
+        
+        // Send end session message
+        if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+            this.websocket.send(JSON.stringify({ 
+                type: 'end_session', 
+                data: {} 
+            }));
+        }
+        
+        // Update UI
+        document.getElementById('start-workout').disabled = false;
+        document.getElementById('end-workout').disabled = true;
+        document.getElementById('exercise-select').disabled = false;
+        document.getElementById('switch-camera').disabled = false;
+        
+        this.updateStartButton();
+        this.updateFeedback('Workout ended!', 'info');
+    }
+    
+    handleSessionComplete(data) {
+        console.log('Session complete:', data);
+        
+        // Show completion modal
+        const modal = new bootstrap.Modal(document.getElementById('sessionCompleteModal'));
+        
+        // Populate final stats
+        const finalStatsDiv = document.getElementById('final-stats');
+        finalStatsDiv.innerHTML = `
+            <div class="row text-center mb-4">
+                <div class="col-md-3">
+                    <h3 class="text-primary">${data.total_reps || 0}</h3>
+                    <small class="text-muted">Total Reps</small>
+                </div>
+                <div class="col-md-3">
+                    <h3 class="text-success">${Math.round((data.average_accuracy || 0) * 100)}%</h3>
+                    <small class="text-muted">Avg Accuracy</small>
+                </div>
+                <div class="col-md-3">
+                    <h3 class="text-info">${Math.round((data.duration || 0) / 60)}:${Math.round((data.duration || 0) % 60).toString().padStart(2, '0')}</h3>
+                    <small class="text-muted">Duration</small>
+                </div>
+                <div class="col-md-3">
+                    <h3 class="text-warning">${Math.round((data.duration || 0) / 60 * 5)}</h3>
+                    <small class="text-muted">Calories</small>
+                </div>
+            </div>
+            <div class="text-start">
+                <h6>Feedback Summary:</h6>
+                <ul class="list-unstyled">
+                    ${(data.feedback_summary || []).map(feedback => 
+                        `<li><i class="fas fa-check text-success me-2"></i>${feedback}</li>`
+                    ).join('')}
+                </ul>
+            </div>
+        `;
+        
+        modal.show();
+        
+        // Close WebSocket
+        if (this.websocket) {
+            this.websocket.close();
+            this.websocket = null;
+        }
+    }
+    
+    pauseWorkout() {
+        if (this.frameInterval) {
+            clearInterval(this.frameInterval);
+            this.frameInterval = null;
+        }
+        console.log('Workout paused');
+    }
+    
+    resumeWorkout() {
+        if (this.isWorkoutActive && !this.frameInterval) {
+            this.startFrameCapture();
+            console.log('Workout resumed');
+        }
+    }
+    
+    updateFeedback(message, type = 'info') {
+        const feedbackDiv = document.getElementById('current-feedback');
+        feedbackDiv.textContent = message;
+        feedbackDiv.className = `alert alert-${type} mb-2`;
+        console.log(`Feedback (${type}): ${message}`);
+    }
+    
+    updateUI() {
+        this.updateCameraInfo();
+        this.updateStartButton();
+        this.updateExerciseInstructions('');
+    }
+}
+
+// Global functions
+function startNewWorkout() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('sessionCompleteModal'));
+    modal.hide();
+    
+    // Reset UI
+    document.getElementById('rep-count').textContent = '0';
+    document.getElementById('accuracy').textContent = '0%';
+    document.getElementById('phase').textContent = 'Ready';
+    document.getElementById('duration').textContent = '00:00';
+    document.getElementById('calories').textContent = '0';
+    document.getElementById('current-feedback').textContent = 'Select an exercise and start your workout';
+    document.getElementById('current-feedback').className = 'alert alert-info mb-2';
+    document.getElementById('feedback-history').innerHTML = '';
+    
+    // Clear overlay
+    if (window.workoutAnalyzer) {
+        window.workoutAnalyzer.overlayCtx.clearRect(0, 0, 640, 480);
+    }
+}
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Initializing Workout Analyzer...');
+    window.workoutAnalyzer = new WorkoutAnalyzer();
+});
+</script>
+{% endblock %}

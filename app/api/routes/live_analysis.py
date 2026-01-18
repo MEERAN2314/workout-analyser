@@ -9,6 +9,7 @@ import asyncio
 import base64
 import cv2
 import numpy as np
+import hashlib
 
 from app.services.websocket_manager import connection_manager, create_session, get_session, end_session
 from app.services.mediapipe_service import mediapipe_service
@@ -33,7 +34,7 @@ class SessionResponse(BaseModel):
 async def live_analysis_page(request: Request):
     """Live analysis page"""
     return templates.TemplateResponse(
-        "live_analysis.html",
+        "live_analysis_new.html",
         {"request": request, "title": "Live Analysis"}
     )
 
@@ -47,13 +48,30 @@ async def start_live_session(request: StartSessionRequest):
         # Store session in database
         db = get_database()
         if db is not None:
+            # Convert string user_id to ObjectId for demo purposes
+            # In production, this would come from JWT token and be a proper ObjectId
+            from bson import ObjectId
+            try:
+                # Try to convert to ObjectId if it's a valid ObjectId string
+                if ObjectId.is_valid(request.user_id):
+                    user_object_id = ObjectId(request.user_id)
+                else:
+                    # For demo users, create a consistent ObjectId based on the string
+                    import hashlib
+                    hash_object = hashlib.md5(request.user_id.encode())
+                    # Use first 24 characters of hash as ObjectId
+                    user_object_id = ObjectId(hash_object.hexdigest()[:24])
+            except:
+                # Fallback: create a new ObjectId
+                user_object_id = ObjectId()
+            
             workout_data = WorkoutCreate(
                 exercise_name=request.exercise_name,
                 session_type="live"
             )
             
             workout_session = WorkoutSession(
-                user_id=request.user_id,
+                user_id=user_object_id,
                 **workout_data.dict()
             )
             
@@ -69,15 +87,20 @@ async def start_live_session(request: StartSessionRequest):
         
     except Exception as e:
         logger.error(f"Error starting live session: {e}")
-        raise HTTPException(status_code=500, detail="Failed to start live session")
+        raise HTTPException(status_code=500, detail=f"Failed to start live session: {str(e)}")
 
 @router.websocket("/ws/{session_id}")
 async def websocket_endpoint(websocket: WebSocket, session_id: str):
     """WebSocket endpoint for live analysis"""
+    logger.info(f"WebSocket connection attempt for session: {session_id}")
+    
     session = get_session(session_id)
     if not session:
+        logger.error(f"Session not found: {session_id}")
         await websocket.close(code=4004, reason="Session not found")
         return
+    
+    logger.info(f"Session found: {session_id}, user: {session.user_id}")
     
     try:
         # Connect to WebSocket
@@ -87,6 +110,8 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             session.user_id, 
             session.exercise_name
         )
+        
+        logger.info(f"WebSocket connected successfully for session: {session_id}")
         
         # Send initial connection confirmation
         await connection_manager.send_personal_message({
@@ -145,6 +170,7 @@ async def process_video_frame(frame_data: dict, session_id: str, session):
         # Decode base64 image
         image_data = frame_data.get('image')
         if not image_data:
+            logger.warning(f"No image data received for session {session_id}")
             return
         
         # Remove data URL prefix if present
@@ -157,13 +183,18 @@ async def process_video_frame(frame_data: dict, session_id: str, session):
         frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
         if frame is None:
+            logger.error(f"Failed to decode image for session {session_id}")
             await connection_manager.send_error(session_id, "Invalid image data")
             return
+        
+        logger.debug(f"Processing frame for session {session_id}, exercise: {session.exercise_name}")
         
         # Process frame with MediaPipe
         result = mediapipe_service.process_frame(frame, session.exercise_name, session_id)
         
         if result:
+            logger.debug(f"MediaPipe result for {session_id}: reps={result.rep_count}, accuracy={result.accuracy_score:.2f}")
+            
             # Update session stats
             session.update_stats(result.rep_count, result.form_feedback, result.accuracy_score)
             
@@ -172,15 +203,26 @@ async def process_video_frame(frame_data: dict, session_id: str, session):
                 'rep_count': result.rep_count,
                 'current_phase': result.current_phase,
                 'form_feedback': result.form_feedback,
-                'accuracy_score': result.accuracy_score
+                'accuracy_score': result.accuracy_score,
+                'angle_data': result.angle_data,
+                'landmarks': {
+                    name: {
+                        'x': landmark.x,
+                        'y': landmark.y,
+                        'z': landmark.z,
+                        'visibility': landmark.visibility
+                    } for name, landmark in result.landmarks.items()
+                } if result.landmarks else None
             })
             
             # Send specific feedback if available
             if result.form_feedback:
                 await connection_manager.send_feedback(session_id, result.form_feedback)
+        else:
+            logger.debug(f"No MediaPipe result for session {session_id} - no pose detected")
         
     except Exception as e:
-        logger.error(f"Error processing video frame: {e}")
+        logger.error(f"Error processing video frame for session {session_id}: {e}")
         await connection_manager.send_error(session_id, "Frame processing error")
 
 async def handle_end_session(session_id: str, session):

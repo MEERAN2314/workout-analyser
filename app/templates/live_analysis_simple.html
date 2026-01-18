@@ -16,9 +16,10 @@
                 <span id="connection-status" class="badge bg-secondary">Disconnected</span>
             </div>
             <div class="card-body">
-                <div id="camera-container" class="text-center">
-                    <video id="video" width="640" height="480" autoplay style="border: 2px solid #ddd; border-radius: 8px; transform: rotate(0deg); transition: transform 0.3s ease;"></video>
+                <div id="camera-container" class="text-center position-relative">
+                    <video id="video" width="640" height="480" autoplay style="border: 2px solid #ddd; border-radius: 8px;"></video>
                     <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
+                    <canvas id="overlay-canvas" width="640" height="480" style="position: absolute; top: 0; left: 0; pointer-events: none; border-radius: 8px;"></canvas>
                 </div>
                 <div class="mt-3 text-center">
                     <div class="btn-group mb-2" role="group">
@@ -46,9 +47,9 @@
                             <i class="fas fa-sync"></i>
                         </button>
                     </div>
-                    <div class="mt-2">
-                        <small id="camera-info" class="text-muted">No camera selected</small>
-                    </div>
+                </div>
+                <div class="mt-2 text-center">
+                    <small id="camera-info" class="text-muted">Click Start Camera</small>
                 </div>
             </div>
         </div>
@@ -66,7 +67,7 @@
                     <option value="squats">Squats</option>
                     <option value="bicep_curls">Bicep Curls</option>
                 </select>
-                <button id="start-workout" class="btn btn-success w-100" disabled>Start Workout</button>
+                <button id="start-workout" class="btn btn-success w-100">Start Workout</button>
             </div>
         </div>
 
@@ -101,10 +102,7 @@
             </div>
             <div class="card-body">
                 <div id="feedback" class="alert alert-info">
-                    Select an exercise and start your camera to begin
-                </div>
-                <div id="feedback-history" class="mt-2" style="max-height: 200px; overflow-y: auto;">
-                    <!-- Feedback history will appear here -->
+                    Select an exercise and start your workout
                 </div>
             </div>
         </div>
@@ -129,39 +127,21 @@
         </div>
     </div>
 </div>
-
-<!-- Session Complete Modal -->
-<div class="modal fade" id="sessionCompleteModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Workout Complete!</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div id="final-stats">
-                    <!-- Final statistics will be populated here -->
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" onclick="startNewWorkout()">Start New Workout</button>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-class LiveAnalysisApp {
+class SimpleWorkoutApp {
     constructor() {
         this.video = document.getElementById('video');
         this.canvas = document.getElementById('canvas');
         this.ctx = this.canvas.getContext('2d');
+        this.overlayCanvas = document.getElementById('overlay-canvas');
+        this.overlayCtx = this.overlayCanvas.getContext('2d');
         this.websocket = null;
         this.sessionId = null;
         this.isWorkoutActive = false;
+        this.currentStream = null;
         this.frameInterval = null;
         this.startTime = null;
         this.durationInterval = null;
@@ -169,7 +149,6 @@ class LiveAnalysisApp {
         // Camera management
         this.availableCameras = [];
         this.currentCameraIndex = 0;
-        this.currentStream = null;
         
         // Camera transformation state
         this.cameraTransform = {
@@ -178,9 +157,13 @@ class LiveAnalysisApp {
             flipVertical: false
         };
         
+        // MediaPipe visualization
+        this.lastLandmarks = null;
+        this.showSkeleton = true;
+        
         this.initializeEventListeners();
         this.detectAvailableCameras();
-        this.loadExercises();
+        console.log('SimpleWorkoutApp initialized');
     }
     
     initializeEventListeners() {
@@ -198,96 +181,44 @@ class LiveAnalysisApp {
         document.getElementById('reset-camera').addEventListener('click', () => this.resetCamera());
     }
     
-    async loadExercises() {
-        try {
-            console.log('Loading exercises...');
-            const response = await fetch('/exercises/');
-            
-            if (response.ok) {
-                const exercises = await response.json();
-                console.log('Exercises loaded:', exercises);
-                
-                const exerciseSelect = document.getElementById('exercise-select');
-                
-                // Clear existing options except the first one
-                while (exerciseSelect.children.length > 1) {
-                    exerciseSelect.removeChild(exerciseSelect.lastChild);
-                }
-                
-                // Add exercise options
-                exercises.forEach(exercise => {
-                    const option = document.createElement('option');
-                    option.value = exercise.name;
-                    option.textContent = exercise.name.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
-                    exerciseSelect.appendChild(option);
-                });
-                
-                console.log('Exercise options added to dropdown');
-            } else {
-                console.error('Failed to load exercises:', response.status);
-                // Fallback: add default exercises
-                this.addDefaultExercises();
-            }
-        } catch (error) {
-            console.error('Error loading exercises:', error);
-            // Fallback: add default exercises
-            this.addDefaultExercises();
-        }
-    }
-    
-    addDefaultExercises() {
-        console.log('Adding default exercises...');
-        const exerciseSelect = document.getElementById('exercise-select');
-        const defaultExercises = [
-            { name: 'push_ups', display: 'Push-ups' },
-            { name: 'squats', display: 'Squats' },
-            { name: 'bicep_curls', display: 'Bicep Curls' }
-        ];
-        
-        // Clear existing options except the first one
-        while (exerciseSelect.children.length > 1) {
-            exerciseSelect.removeChild(exerciseSelect.lastChild);
-        }
-        
-        defaultExercises.forEach(exercise => {
-            const option = document.createElement('option');
-            option.value = exercise.name;
-            option.textContent = exercise.display;
-            exerciseSelect.appendChild(option);
-        });
-    }
-    
     async detectAvailableCameras() {
         try {
             console.log('Detecting available cameras...');
             
-            // Simple approach - just assume we have a camera
-            this.availableCameras = [{ deviceId: 'default', label: 'Default Camera' }];
-            this.updateCameraInfo();
-            
-            // Try to get actual camera list if possible
-            if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-                try {
-                    const devices = await navigator.mediaDevices.enumerateDevices();
-                    const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                    
-                    if (videoDevices.length > 0) {
-                        this.availableCameras = videoDevices;
-                        this.updateCameraInfo();
-                        console.log('Found cameras:', videoDevices);
+            if (this.isMobile()) {
+                // For mobile, we know there are typically front and back cameras
+                this.availableCameras = [
+                    { deviceId: 'front', label: 'Front Camera', facingMode: 'user' },
+                    { deviceId: 'back', label: 'Back Camera', facingMode: 'environment' }
+                ];
+                console.log('Mobile detected - using front/back camera setup');
+            } else {
+                // Default fallback for desktop
+                this.availableCameras = [{ deviceId: 'default', label: 'Default Camera' }];
+                
+                // Try to get actual camera list for desktop
+                if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                    try {
+                        const devices = await navigator.mediaDevices.enumerateDevices();
+                        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                        
+                        if (videoDevices.length > 0) {
+                            this.availableCameras = videoDevices;
+                            console.log('Found desktop cameras:', videoDevices);
+                        }
+                    } catch (enumError) {
+                        console.warn('Could not enumerate desktop devices:', enumError);
                     }
-                } catch (enumError) {
-                    console.warn('Could not enumerate devices:', enumError);
                 }
             }
             
+            this.updateCameraInfo();
+            
         } catch (err) {
             console.error('Error detecting cameras:', err);
-            // Keep the default camera fallback
             this.availableCameras = [{ deviceId: 'default', label: 'Default Camera' }];
             this.updateCameraInfo();
         }
-    }
     }
     
     updateCameraInfo() {
@@ -309,54 +240,110 @@ class LiveAnalysisApp {
     async startCamera() {
         try {
             console.log('Starting camera...');
+            this.updateFeedback('Starting camera...', 'info');
             
-            // Simple and reliable camera start
-            this.currentStream = await navigator.mediaDevices.getUserMedia({ 
-                video: true 
-            });
-            
-            this.video.srcObject = this.currentStream;
-            
-            // Wait for video to load and play
-            this.video.onloadedmetadata = () => {
-                console.log('Video metadata loaded');
-                this.video.play().catch(e => console.log('Video play failed:', e));
+            // Mobile-friendly camera constraints
+            const constraints = {
+                video: {
+                    width: { ideal: 640, max: 1280 },
+                    height: { ideal: 480, max: 720 },
+                    facingMode: 'user' // Start with front camera on mobile
+                }
             };
             
-            // Update UI immediately
+            // Use specific camera if available and not on mobile
+            if (this.availableCameras.length > 0 && 
+                this.availableCameras[this.currentCameraIndex].deviceId !== 'default' &&
+                !this.isMobile()) {
+                constraints.video.deviceId = { exact: this.availableCameras[this.currentCameraIndex].deviceId };
+                delete constraints.video.facingMode;
+            }
+            
+            console.log('Camera constraints:', constraints);
+            
+            this.currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+            this.video.srcObject = this.currentStream;
+            
+            // Wait for video to be ready
+            await new Promise((resolve) => {
+                this.video.onloadedmetadata = () => {
+                    console.log('Video metadata loaded');
+                    this.video.play().then(resolve).catch(resolve);
+                };
+            });
+            
             document.getElementById('start-camera').disabled = true;
             document.getElementById('stop-camera').disabled = false;
             
             // Enable camera controls
             this.enableCameraControls(true);
             
-            // Always enable start workout button when camera is running
-            document.getElementById('start-workout').disabled = false;
-            
             this.updateCameraInfo();
-            this.updateFeedback('Camera started successfully! Select an exercise and click Start Workout.', 'success');
+            this.updateFeedback('Camera started! Use controls to adjust orientation. Select an exercise and start workout.', 'success');
+            console.log('Camera started successfully');
             
         } catch (err) {
-            console.error('Error starting camera:', err);
+            console.error('Camera error:', err);
+            
+            // Try fallback for mobile
+            if (err.name === 'OverconstrainedError' || err.name === 'NotReadableError') {
+                try {
+                    console.log('Trying mobile fallback...');
+                    this.currentStream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: 'environment' } // Try back camera
+                    });
+                    this.video.srcObject = this.currentStream;
+                    
+                    document.getElementById('start-camera').disabled = true;
+                    document.getElementById('stop-camera').disabled = false;
+                    this.enableCameraControls(true);
+                    
+                    this.updateFeedback('Camera started with mobile fallback', 'success');
+                    return;
+                } catch (fallbackErr) {
+                    console.error('Mobile fallback failed:', fallbackErr);
+                }
+            }
+            
+            let errorMsg = 'Camera access failed: ';
             
             if (err.name === 'NotAllowedError') {
-                this.updateFeedback('Camera access denied. Please allow camera permissions and refresh the page.', 'danger');
+                errorMsg += 'Permission denied. Please allow camera access and refresh the page.';
             } else if (err.name === 'NotFoundError') {
-                this.updateFeedback('No camera found. Please connect a camera and try again.', 'danger');
-            } else if (err.name === 'NotSecureError' || err.message.includes('secure')) {
-                this.updateFeedback('Camera requires HTTPS. Try using ngrok or enable camera permissions for localhost.', 'warning');
+                errorMsg += 'No camera found.';
+            } else if (err.name === 'NotSecureError') {
+                errorMsg += 'Camera requires HTTPS. Please use ngrok or enable permissions for localhost.';
             } else {
-                this.updateFeedback('Error accessing camera: ' + err.message, 'danger');
+                errorMsg += err.message;
             }
+            
+            this.updateFeedback(errorMsg, 'danger');
         }
     }
     
-    async switchCamera() {
-        if (this.availableCameras.length <= 1) {
-            this.updateFeedback('Only one camera available', 'info');
-            return;
+    isMobile() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+    
+    stopCamera() {
+        if (this.currentStream) {
+            this.currentStream.getTracks().forEach(track => track.stop());
+            this.video.srcObject = null;
+            this.currentStream = null;
         }
         
+        document.getElementById('start-camera').disabled = false;
+        document.getElementById('stop-camera').disabled = true;
+        
+        // Disable camera controls
+        this.enableCameraControls(false);
+        
+        document.getElementById('camera-info').textContent = 'Camera stopped';
+        this.updateFeedback('Camera stopped.', 'info');
+        console.log('Camera stopped');
+    }
+    
+    async switchCamera() {
         try {
             console.log('Switching camera...');
             
@@ -367,23 +354,46 @@ class LiveAnalysisApp {
             
             // Switch to next camera
             this.currentCameraIndex = (this.currentCameraIndex + 1) % this.availableCameras.length;
+            const currentCamera = this.availableCameras[this.currentCameraIndex];
             
-            // Start new camera
-            const deviceId = this.availableCameras[this.currentCameraIndex].deviceId;
+            let constraints;
             
-            this.currentStream = await navigator.mediaDevices.getUserMedia({ 
-                video: { 
-                    deviceId: deviceId ? { exact: deviceId } : undefined,
-                    width: 640, 
-                    height: 480 
-                } 
+            if (this.isMobile() && currentCamera.facingMode) {
+                // Mobile camera switching
+                constraints = {
+                    video: {
+                        facingMode: currentCamera.facingMode,
+                        width: { ideal: 640, max: 1280 },
+                        height: { ideal: 480, max: 720 }
+                    }
+                };
+                console.log('Mobile camera constraints:', constraints);
+            } else if (currentCamera.deviceId !== 'default') {
+                // Desktop camera switching
+                constraints = {
+                    video: {
+                        deviceId: { exact: currentCamera.deviceId },
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    }
+                };
+            } else {
+                // Fallback
+                constraints = { video: true };
+            }
+            
+            this.currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+            this.video.srcObject = this.currentStream;
+            
+            // Wait for video to load
+            await new Promise((resolve) => {
+                this.video.onloadedmetadata = () => {
+                    this.video.play().then(resolve).catch(resolve);
+                };
             });
             
-            this.video.srcObject = this.currentStream;
             this.updateCameraInfo();
-            
-            const cameraName = this.availableCameras[this.currentCameraIndex].label || `Camera ${this.currentCameraIndex + 1}`;
-            this.updateFeedback(`Switched to: ${cameraName}`, 'info');
+            this.updateFeedback(`Switched to: ${currentCamera.label}`, 'info');
             
         } catch (err) {
             console.error('Error switching camera:', err);
@@ -391,31 +401,8 @@ class LiveAnalysisApp {
             
             // Try to restart the previous camera
             this.currentCameraIndex = (this.currentCameraIndex - 1 + this.availableCameras.length) % this.availableCameras.length;
-            this.startCamera();
+            setTimeout(() => this.startCamera(), 1000);
         }
-    }
-    
-    stopCamera() {
-        console.log('Stopping camera...');
-        
-        if (this.currentStream) {
-            this.currentStream.getTracks().forEach(track => track.stop());
-            this.video.srcObject = null;
-            this.currentStream = null;
-        }
-        
-        if (this.isWorkoutActive) {
-            this.endWorkout();
-        }
-        
-        document.getElementById('start-camera').disabled = false;
-        document.getElementById('stop-camera').disabled = true;
-        document.getElementById('start-workout').disabled = true;
-        
-        // Disable camera controls
-        this.enableCameraControls(false);
-        
-        this.updateFeedback('Camera stopped.', 'info');
     }
     
     enableCameraControls(enabled) {
@@ -476,65 +463,54 @@ class LiveAnalysisApp {
         }
         
         this.video.style.transform = transform;
+        this.video.style.transition = 'transform 0.3s ease';
     }
     
     async startWorkout() {
         const exercise = document.getElementById('exercise-select').value;
-        console.log('Starting workout with exercise:', exercise);
         
         if (!exercise) {
             alert('Please select an exercise first');
             return;
         }
         
-        // Don't check for camera stream - let it work even without camera for testing
-        console.log('Camera stream status:', this.currentStream ? 'Available' : 'Not available');
-        
         try {
-            console.log('Sending start session request...');
+            console.log('Starting workout:', exercise);
+            this.updateFeedback('Starting workout...', 'info');
             
-            // Start session on server
+            // Create session
             const response = await fetch('/live/start-session', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     exercise_name: exercise,
                     user_id: 'demo_user'
                 })
             });
             
-            console.log('Response status:', response.status);
-            
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('Server error:', errorText);
-                throw new Error(`Failed to start session: ${response.status} - ${errorText}`);
+                throw new Error(`Server error: ${response.status} - ${errorText}`);
             }
             
             const data = await response.json();
-            console.log('Session created:', data);
             this.sessionId = data.session_id;
+            console.log('Session created:', this.sessionId);
             
             // Connect WebSocket
-            console.log('Connecting WebSocket...');
             await this.connectWebSocket();
             
-            // Start sending frames only if camera is available
-            if (this.currentStream) {
-                console.log('Starting frame capture...');
-                this.startFrameCapture();
-            } else {
-                console.log('No camera stream - workout will run without video analysis');
-                this.updateFeedback('Workout started without camera. Video analysis disabled.', 'warning');
-            }
-            
-            // Update UI
+            // Start workout
             this.isWorkoutActive = true;
             this.startTime = Date.now();
             this.startDurationTimer();
             
+            // Start frame capture if camera is available
+            if (this.currentStream) {
+                this.startFrameCapture();
+            }
+            
+            // Update UI
             document.getElementById('start-workout').disabled = true;
             document.getElementById('end-workout').disabled = false;
             document.getElementById('exercise-select').disabled = true;
@@ -542,11 +518,11 @@ class LiveAnalysisApp {
             // Disable camera controls during workout
             this.enableCameraControls(false);
             
-            this.updateFeedback(`Workout started! Exercise: ${exercise.replace('_', ' ')}. ${this.currentStream ? 'Video analysis active.' : 'Video analysis disabled - no camera.'}`, 'success');
+            this.updateFeedback(`Workout started! Exercise: ${exercise.replace('_', ' ')}`, 'success');
             
         } catch (error) {
-            console.error('Error starting workout:', error);
-            this.updateFeedback('Error starting workout: ' + error.message, 'danger');
+            console.error('Workout start error:', error);
+            this.updateFeedback('Failed to start workout: ' + error.message, 'danger');
         }
     }
     
@@ -554,76 +530,59 @@ class LiveAnalysisApp {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/live/ws/${this.sessionId}`;
         
-        console.log('Connecting to WebSocket:', wsUrl);
-        console.log('Session ID:', this.sessionId);
+        console.log('Connecting WebSocket:', wsUrl);
         
         return new Promise((resolve, reject) => {
             this.websocket = new WebSocket(wsUrl);
             
             this.websocket.onopen = () => {
-                console.log('WebSocket connected successfully');
+                console.log('WebSocket connected');
                 document.getElementById('connection-status').textContent = 'Connected';
                 document.getElementById('connection-status').className = 'badge bg-success';
                 resolve();
             };
             
             this.websocket.onmessage = (event) => {
-                console.log('WebSocket message received:', event.data);
-                try {
-                    const message = JSON.parse(event.data);
-                    this.handleWebSocketMessage(message);
-                } catch (e) {
-                    console.error('Error parsing WebSocket message:', e);
-                }
+                const message = JSON.parse(event.data);
+                this.handleWebSocketMessage(message);
             };
             
-            this.websocket.onclose = (event) => {
-                console.log('WebSocket closed:', event.code, event.reason);
+            this.websocket.onclose = () => {
+                console.log('WebSocket closed');
                 document.getElementById('connection-status').textContent = 'Disconnected';
                 document.getElementById('connection-status').className = 'badge bg-danger';
             };
             
             this.websocket.onerror = (error) => {
                 console.error('WebSocket error:', error);
-                document.getElementById('connection-status').textContent = 'Error';
-                document.getElementById('connection-status').className = 'badge bg-danger';
-                this.updateFeedback('WebSocket connection failed', 'danger');
                 reject(error);
             };
             
-            // Timeout after 10 seconds
             setTimeout(() => {
                 if (this.websocket.readyState !== WebSocket.OPEN) {
-                    console.error('WebSocket connection timeout');
-                    this.websocket.close();
-                    reject(new Error('WebSocket connection timeout'));
+                    reject(new Error('WebSocket timeout'));
                 }
-            }, 10000);
+            }, 5000);
         });
     }
     
     handleWebSocketMessage(message) {
+        console.log('WebSocket message:', message);
+        
         switch (message.type) {
             case 'connected':
                 this.updateFeedback(message.data.message, 'success');
                 break;
-                
             case 'analysis_result':
                 this.updateStats(message.data);
+                // Draw skeleton if landmarks are available
+                if (message.data.landmarks) {
+                    this.drawSkeleton(message.data.landmarks);
+                }
                 break;
-                
-            case 'feedback':
-                this.addFeedbackToHistory(message.data.feedback);
-                break;
-                
             case 'rep_update':
                 this.updateRepCount(message.data.rep_count, message.data.current_phase);
                 break;
-                
-            case 'session_complete':
-                this.handleSessionComplete(message.data);
-                break;
-                
             case 'error':
                 this.updateFeedback('Error: ' + message.data.message, 'danger');
                 break;
@@ -635,7 +594,7 @@ class LiveAnalysisApp {
             if (this.isWorkoutActive && this.websocket && this.websocket.readyState === WebSocket.OPEN) {
                 this.captureAndSendFrame();
             }
-        }, 100); // Send frame every 100ms (10 FPS)
+        }, 200); // 5 FPS
     }
     
     captureAndSendFrame() {
@@ -662,20 +621,14 @@ class LiveAnalysisApp {
         // Restore canvas context
         this.ctx.restore();
         
-        // Convert to base64
-        const imageData = this.canvas.toDataURL('image/jpeg', 0.8);
+        const imageData = this.canvas.toDataURL('image/jpeg', 0.7);
         
-        // Send to server with transformation and camera info
         this.websocket.send(JSON.stringify({
             type: 'frame',
             data: {
                 image: imageData,
                 timestamp: Date.now(),
-                transform: this.cameraTransform,
-                camera_info: {
-                    index: this.currentCameraIndex,
-                    label: this.availableCameras[this.currentCameraIndex]?.label || 'Unknown'
-                }
+                transform: this.cameraTransform
             }
         }));
     }
@@ -684,39 +637,11 @@ class LiveAnalysisApp {
         document.getElementById('rep-count').textContent = data.rep_count;
         document.getElementById('accuracy').textContent = Math.round(data.accuracy_score * 100) + '%';
         document.getElementById('phase').textContent = data.current_phase;
-        
-        // Update accuracy color
-        const accuracyElement = document.getElementById('accuracy');
-        if (data.accuracy_score >= 0.8) {
-            accuracyElement.className = 'text-success';
-        } else if (data.accuracy_score >= 0.6) {
-            accuracyElement.className = 'text-warning';
-        } else {
-            accuracyElement.className = 'text-danger';
-        }
     }
     
     updateRepCount(repCount, phase) {
         document.getElementById('rep-count').textContent = repCount;
         document.getElementById('phase').textContent = phase;
-    }
-    
-    addFeedbackToHistory(feedback) {
-        const historyDiv = document.getElementById('feedback-history');
-        feedback.forEach(item => {
-            const feedbackItem = document.createElement('div');
-            feedbackItem.className = 'alert alert-warning alert-sm py-1 px-2 mb-1';
-            feedbackItem.innerHTML = `<small>${item}</small>`;
-            historyDiv.appendChild(feedbackItem);
-        });
-        
-        // Scroll to bottom
-        historyDiv.scrollTop = historyDiv.scrollHeight;
-        
-        // Keep only last 10 feedback items
-        while (historyDiv.children.length > 10) {
-            historyDiv.removeChild(historyDiv.firstChild);
-        }
     }
     
     startDurationTimer() {
@@ -732,150 +657,127 @@ class LiveAnalysisApp {
     }
     
     async endWorkout() {
-        if (!this.isWorkoutActive) return;
-        
         this.isWorkoutActive = false;
         
-        // Stop frame capture
         if (this.frameInterval) {
             clearInterval(this.frameInterval);
             this.frameInterval = null;
         }
         
-        // Stop duration timer
         if (this.durationInterval) {
             clearInterval(this.durationInterval);
             this.durationInterval = null;
         }
         
-        // Send end session message
-        if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
-            this.websocket.send(JSON.stringify({
-                type: 'end_session',
-                data: {}
-            }));
+        if (this.websocket) {
+            this.websocket.send(JSON.stringify({ type: 'end_session', data: {} }));
+            this.websocket.close();
         }
         
-        // Update UI
         document.getElementById('start-workout').disabled = false;
         document.getElementById('end-workout').disabled = true;
         document.getElementById('exercise-select').disabled = false;
         
         // Re-enable camera controls
-        this.enableCameraControls(true);
-        
-        this.updateFeedback('Workout ended. Great job! Camera controls re-enabled.', 'info');
-    }
-    
-    handleSessionComplete(finalStats) {
-        // Populate modal with final statistics
-        const statsDiv = document.getElementById('final-stats');
-        statsDiv.innerHTML = `
-            <div class="row text-center mb-3">
-                <div class="col-4">
-                    <h4 class="text-primary">${finalStats.total_reps}</h4>
-                    <small>Total Reps</small>
-                </div>
-                <div class="col-4">
-                    <h4 class="text-success">${Math.round(finalStats.average_accuracy * 100)}%</h4>
-                    <small>Avg Accuracy</small>
-                </div>
-                <div class="col-4">
-                    <h4 class="text-info">${Math.round(finalStats.duration)}s</h4>
-                    <small>Duration</small>
-                </div>
-            </div>
-            <div class="mb-3">
-                <h6>Exercise: ${finalStats.exercise_name.replace('_', ' ')}</h6>
-                <p class="text-muted">Completed at: ${new Date(finalStats.completed_at).toLocaleTimeString()}</p>
-            </div>
-            ${finalStats.feedback_summary.length > 0 ? `
-                <div>
-                    <h6>Key Feedback:</h6>
-                    <ul class="list-unstyled">
-                        ${finalStats.feedback_summary.map(item => `<li><small>• ${item}</small></li>`).join('')}
-                    </ul>
-                </div>
-            ` : ''}
-        `;
-        
-        // Show modal
-        const modal = new bootstrap.Modal(document.getElementById('sessionCompleteModal'));
-        modal.show();
-        
-        // Close WebSocket
-        if (this.websocket) {
-            this.websocket.close();
-            this.websocket = null;
+        if (this.currentStream) {
+            this.enableCameraControls(true);
         }
+        
+        this.updateFeedback('Workout ended!', 'info');
     }
     
     updateFeedback(message, type) {
         const feedbackDiv = document.getElementById('feedback');
-        if (feedbackDiv) {
-            feedbackDiv.textContent = message;
-            feedbackDiv.className = `alert alert-${type}`;
-        }
-        console.log(`Feedback (${type}):`, message);
-    }
-}
-
-// Initialize app when page loads
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('Initializing Live Analysis App...');
-    
-    // Check if we're on a secure context for camera access
-    if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-        console.warn('Camera access requires HTTPS or localhost');
-        document.getElementById('feedback').innerHTML = 
-            '<div class="alert alert-warning">Camera access requires HTTPS or localhost. Use ngrok for HTTPS or enable camera permissions for localhost.</div>';
+        feedbackDiv.textContent = message;
+        feedbackDiv.className = `alert alert-${type}`;
+        console.log(`Feedback: ${message}`);
     }
     
-    window.liveAnalysisApp = new LiveAnalysisApp();
-    
-    // Enable start workout button after a short delay to ensure everything is loaded
-    setTimeout(() => {
-        const exerciseSelect = document.getElementById('exercise-select');
-        const startWorkoutBtn = document.getElementById('start-workout');
+    drawSkeleton(landmarks) {
+        if (!this.showSkeleton || !landmarks) return;
         
-        // Enable start workout if an exercise is selected
-        if (exerciseSelect.value) {
-            startWorkoutBtn.disabled = false;
-            console.log('Start workout button enabled');
-        }
+        // Clear overlay canvas
+        this.overlayCtx.clearRect(0, 0, 640, 480);
         
-        // Add event listener to enable button when exercise is selected
-        exerciseSelect.addEventListener('change', () => {
-            if (exerciseSelect.value) {
-                startWorkoutBtn.disabled = false;
-                console.log('Start workout button enabled via exercise selection');
-            } else {
-                startWorkoutBtn.disabled = true;
+        // Set drawing style for better visibility
+        this.overlayCtx.strokeStyle = '#00ff00';
+        this.overlayCtx.fillStyle = '#ff0000';
+        this.overlayCtx.lineWidth = 3;
+        this.overlayCtx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        this.overlayCtx.shadowBlur = 2;
+        
+        // Draw skeleton connections first (behind landmarks)
+        this.drawSkeletonConnections(landmarks);
+        
+        // Draw landmarks as points (on top)
+        Object.entries(landmarks).forEach(([name, landmark]) => {
+            if (landmark.visibility > 0.6) {
+                const x = landmark.x * 640;
+                const y = landmark.y * 480;
+                
+                // Draw larger, more visible points
+                this.overlayCtx.beginPath();
+                this.overlayCtx.arc(x, y, 6, 0, 2 * Math.PI);
+                this.overlayCtx.fill();
+                
+                // Add white border for better visibility
+                this.overlayCtx.strokeStyle = '#ffffff';
+                this.overlayCtx.lineWidth = 2;
+                this.overlayCtx.stroke();
+                this.overlayCtx.strokeStyle = '#00ff00';
+                this.overlayCtx.lineWidth = 3;
             }
         });
-    }, 1000);
-});
-
-function startNewWorkout() {
-    // Reset stats
-    document.getElementById('rep-count').textContent = '0';
-    document.getElementById('accuracy').textContent = '0%';
-    document.getElementById('phase').textContent = 'Ready';
-    document.getElementById('duration').textContent = '00:00';
-    document.getElementById('feedback-history').innerHTML = '';
-    
-    // Close modal
-    const modal = bootstrap.Modal.getInstance(document.getElementById('sessionCompleteModal'));
-    if (modal) {
-        modal.hide();
+        
+        this.lastLandmarks = landmarks;
     }
     
-    // Reset app state
-    if (window.liveAnalysisApp) {
-        window.liveAnalysisApp.sessionId = null;
-        window.liveAnalysisApp.startTime = null;
-        window.liveAnalysisApp.updateFeedback('Ready for new workout!', 'info');
+    drawSkeletonConnections(landmarks) {
+        // Define pose connections with better visibility
+        const connections = [
+            // Face
+            ['nose', 'left_eye'], ['nose', 'right_eye'],
+            
+            // Arms
+            ['left_shoulder', 'right_shoulder'],
+            ['left_shoulder', 'left_elbow'], ['left_elbow', 'left_wrist'],
+            ['right_shoulder', 'right_elbow'], ['right_elbow', 'right_wrist'],
+            
+            // Body
+            ['left_shoulder', 'left_hip'], ['right_shoulder', 'right_hip'],
+            ['left_hip', 'right_hip'],
+            
+            // Legs
+            ['left_hip', 'left_knee'], ['left_knee', 'left_ankle'],
+            ['right_hip', 'right_knee'], ['right_knee', 'right_ankle']
+        ];
+        
+        connections.forEach(([point1, point2]) => {
+            const landmark1 = landmarks[point1];
+            const landmark2 = landmarks[point2];
+            
+            if (landmark1 && landmark2 && 
+                landmark1.visibility > 0.6 && landmark2.visibility > 0.6) {
+                
+                const x1 = landmark1.x * 640;
+                const y1 = landmark1.y * 480;
+                const x2 = landmark2.x * 640;
+                const y2 = landmark2.y * 480;
+                
+                // Draw thicker lines with shadow for better visibility
+                this.overlayCtx.beginPath();
+                this.overlayCtx.moveTo(x1, y1);
+                this.overlayCtx.lineTo(x2, y2);
+                this.overlayCtx.stroke();
+            }
+        });
     }
 }
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('Page loaded, initializing app...');
+    window.workoutApp = new SimpleWorkoutApp();
+});
 </script>
 {% endblock %}
