@@ -85,9 +85,11 @@ class MediaPipeService:
                     'movement_direction': 'none',
                     'frame_count': 0,
                     'stable_frames': 0,
-                    'last_rep_frame': 0
+                    'last_rep_frame': 0,
+                    'last_angle': 0,
+                    'exercise_name': exercise_name.lower()
                 }
-                logger.info(f"Initialized exercise state for session {session_id}")
+                logger.info(f"Initialized exercise state for session {session_id} - {exercise_name}")
             
             state = self.exercise_states[session_id]
             state['frame_count'] += 1
@@ -199,32 +201,43 @@ class MediaPipeService:
         )
         angle_data['body_angle'] = body_angle
         
-        # Improved push-up phase detection with hysteresis
+        # IMPROVED push-up phase detection with better thresholds
         current_phase = state['current_phase']
         rep_detected = False
         
-        # Phase thresholds with hysteresis to prevent false counts
-        UP_THRESHOLD = 150  # Elbow angle when arms are extended
-        DOWN_THRESHOLD = 90  # Elbow angle when in bottom position
+        # More accurate phase thresholds
+        UP_THRESHOLD = 140    # Arms mostly extended
+        DOWN_THRESHOLD = 80   # Arms bent at bottom
+        HYSTERESIS = 10       # Prevent oscillation
         
+        # State machine for rep counting
         if current_phase == 'ready':
             if avg_elbow_angle > UP_THRESHOLD:
                 state['current_phase'] = 'up'
                 state['stable_frames'] = 0
+                feedback.append("Starting position detected")
         
         elif current_phase == 'up':
             if avg_elbow_angle < DOWN_THRESHOLD:
                 state['current_phase'] = 'down'
                 state['stable_frames'] = 0
+                feedback.append("Going down")
         
         elif current_phase == 'down':
-            if avg_elbow_angle > UP_THRESHOLD:
-                # Check if enough frames have passed since last rep
-                if state['frame_count'] - state['last_rep_frame'] > 10:  # Minimum 10 frames between reps
+            # Require stable frames in down position before counting up
+            if avg_elbow_angle < DOWN_THRESHOLD + HYSTERESIS:
+                state['stable_frames'] += 1
+            
+            if avg_elbow_angle > UP_THRESHOLD and state['stable_frames'] >= 3:
+                # Check minimum time between reps (prevent double counting)
+                frames_since_last_rep = state['frame_count'] - state['last_rep_frame']
+                if frames_since_last_rep > 20:  # Minimum 2 seconds at 10 FPS
                     state['current_phase'] = 'up'
                     state['rep_count'] += 1
                     state['last_rep_frame'] = state['frame_count']
+                    state['stable_frames'] = 0
                     rep_detected = True
+                    feedback.append(f"Push-up {state['rep_count']} completed!")
         
         # Form analysis with detailed feedback
         accuracy_score = 1.0
@@ -234,14 +247,14 @@ class MediaPipeService:
         elbow_width = self._calculate_distance(landmarks['left_elbow'], landmarks['right_elbow'])
         
         elbow_flare_ratio = elbow_width / shoulder_width if shoulder_width > 0 else 0
-        if elbow_flare_ratio > 1.5:
+        if elbow_flare_ratio > 1.6:
             feedback.append("Keep elbows closer to your body")
             accuracy_score -= 0.15
-        elif elbow_flare_ratio < 1.2:
+        elif elbow_flare_ratio < 1.3:
             feedback.append("Good elbow position!")
         
         # 2. Check body alignment (plank position)
-        if body_angle < 160 or body_angle > 200:
+        if body_angle < 150 or body_angle > 210:
             feedback.append("Keep your body in a straight line")
             accuracy_score -= 0.2
         else:
@@ -249,10 +262,10 @@ class MediaPipeService:
         
         # 3. Check depth based on current phase
         if current_phase == 'down':
-            if avg_elbow_angle > 110:
+            if avg_elbow_angle > 100:
                 feedback.append("Go deeper - lower your chest more")
                 accuracy_score -= 0.15
-            elif avg_elbow_angle < 70:
+            elif avg_elbow_angle < 60:
                 feedback.append("Perfect depth!")
                 accuracy_score += 0.05
             else:
@@ -265,13 +278,6 @@ class MediaPipeService:
         if left_hand_shoulder_dist > 0.15 or right_hand_shoulder_dist > 0.15:
             feedback.append("Align hands with shoulders")
             accuracy_score -= 0.1
-        
-        # 5. Motivational feedback
-        if rep_detected:
-            if accuracy_score > 0.8:
-                feedback.append("Excellent rep! Keep it up!")
-            else:
-                feedback.append("Rep completed - focus on form")
         
         return ExerciseResult(
             rep_count=state['rep_count'],
@@ -312,29 +318,43 @@ class MediaPipeService:
         )
         angle_data['hip_angle'] = left_hip_angle
         
-        # Improved squat phase detection
+        # IMPROVED squat phase detection with better thresholds
         current_phase = state['current_phase']
         rep_detected = False
         
-        # Phase thresholds
-        STANDING_THRESHOLD = 160
-        SQUAT_THRESHOLD = 100
+        # More accurate phase thresholds for squats
+        STANDING_THRESHOLD = 150  # Knees mostly straight
+        SQUAT_THRESHOLD = 90      # Deep squat position
+        HYSTERESIS = 15           # Prevent oscillation
         
+        # State machine for rep counting
         if current_phase == 'ready':
             if avg_knee_angle > STANDING_THRESHOLD:
                 state['current_phase'] = 'up'
+                state['stable_frames'] = 0
+                feedback.append("Standing position detected")
         
         elif current_phase == 'up':
             if avg_knee_angle < SQUAT_THRESHOLD:
                 state['current_phase'] = 'down'
+                state['stable_frames'] = 0
+                feedback.append("Squatting down")
         
         elif current_phase == 'down':
-            if avg_knee_angle > STANDING_THRESHOLD:
-                if state['frame_count'] - state['last_rep_frame'] > 15:
+            # Require stable frames in squat position
+            if avg_knee_angle < SQUAT_THRESHOLD + HYSTERESIS:
+                state['stable_frames'] += 1
+            
+            if avg_knee_angle > STANDING_THRESHOLD and state['stable_frames'] >= 5:
+                # Check minimum time between reps
+                frames_since_last_rep = state['frame_count'] - state['last_rep_frame']
+                if frames_since_last_rep > 25:  # Minimum 2.5 seconds at 10 FPS
                     state['current_phase'] = 'up'
                     state['rep_count'] += 1
                     state['last_rep_frame'] = state['frame_count']
+                    state['stable_frames'] = 0
                     rep_detected = True
+                    feedback.append(f"Squat {state['rep_count']} completed!")
         
         # Form analysis
         accuracy_score = 1.0
@@ -343,7 +363,7 @@ class MediaPipeService:
         left_knee_ankle_dist = abs(landmarks['left_knee'].x - landmarks['left_ankle'].x)
         right_knee_ankle_dist = abs(landmarks['right_knee'].x - landmarks['right_ankle'].x)
         
-        if left_knee_ankle_dist > 0.1 or right_knee_ankle_dist > 0.1:
+        if left_knee_ankle_dist > 0.08 or right_knee_ankle_dist > 0.08:
             feedback.append("Keep knees aligned over your toes")
             accuracy_score -= 0.2
         else:
@@ -351,39 +371,35 @@ class MediaPipeService:
         
         # 2. Check squat depth
         if current_phase == 'down':
-            if avg_knee_angle > 120:
+            if avg_knee_angle > 110:
                 feedback.append("Go deeper - squat until thighs are parallel")
                 accuracy_score -= 0.15
-            elif avg_knee_angle < 80:
+            elif avg_knee_angle < 70:
                 feedback.append("Excellent depth!")
                 accuracy_score += 0.05
             else:
                 feedback.append("Good squat depth!")
         
-        # 3. Check back posture
-        back_angle = self._calculate_angle_3d(
+        # 3. Check back posture using torso angle
+        torso_angle = self._calculate_angle_3d(
             landmarks['left_shoulder'],
             landmarks['left_hip'],
-            landmarks['left_ankle']
+            landmarks['left_knee']
         )
         
-        if back_angle < 70 or back_angle > 110:
+        if torso_angle < 60 or torso_angle > 120:
             feedback.append("Keep your chest up and back straight")
             accuracy_score -= 0.15
+        else:
+            feedback.append("Good posture!")
         
         # 4. Check foot stability
         left_ankle_y = landmarks['left_ankle'].y
         right_ankle_y = landmarks['right_ankle'].y
         
-        if abs(left_ankle_y - right_ankle_y) > 0.05:
+        if abs(left_ankle_y - right_ankle_y) > 0.03:
             feedback.append("Keep both feet planted evenly")
             accuracy_score -= 0.1
-        
-        if rep_detected:
-            if accuracy_score > 0.8:
-                feedback.append("Perfect squat! Keep going!")
-            else:
-                feedback.append("Squat completed - work on form")
         
         return ExerciseResult(
             rep_count=state['rep_count'],
@@ -395,64 +411,122 @@ class MediaPipeService:
         )
     
     def _analyze_bicep_curls_improved(self, landmarks: Dict[str, PoseLandmark], session_id: str) -> ExerciseResult:
-        """Improved bicep curl analysis"""
+        """Improved bicep curl analysis with better rep counting"""
         state = self.exercise_states[session_id]
         feedback = []
         angle_data = {}
         
-        # Use right arm for analysis (can be extended for both arms)
-        elbow_angle = self._calculate_angle_3d(
+        # Calculate both arms for better accuracy
+        left_elbow_angle = self._calculate_angle_3d(
+            landmarks['left_shoulder'],
+            landmarks['left_elbow'],
+            landmarks['left_wrist']
+        )
+        
+        right_elbow_angle = self._calculate_angle_3d(
             landmarks['right_shoulder'],
             landmarks['right_elbow'],
             landmarks['right_wrist']
         )
-        angle_data['elbow_angle'] = elbow_angle
         
-        # Phase detection
+        # Use the arm with better visibility or average both
+        left_visibility = landmarks['left_elbow'].visibility
+        right_visibility = landmarks['right_elbow'].visibility
+        
+        if left_visibility > right_visibility:
+            primary_elbow_angle = left_elbow_angle
+            primary_arm = 'left'
+        else:
+            primary_elbow_angle = right_elbow_angle
+            primary_arm = 'right'
+        
+        angle_data['elbow_angle'] = primary_elbow_angle
+        angle_data['primary_arm'] = primary_arm
+        
+        # IMPROVED bicep curl phase detection
         current_phase = state['current_phase']
         rep_detected = False
         
-        EXTENDED_THRESHOLD = 160
-        CURLED_THRESHOLD = 50
+        # More accurate thresholds for bicep curls
+        EXTENDED_THRESHOLD = 150   # Arm mostly straight
+        CURLED_THRESHOLD = 45      # Arm fully curled
+        HYSTERESIS = 10            # Prevent oscillation
         
+        # State machine for rep counting
         if current_phase == 'ready':
-            if elbow_angle > EXTENDED_THRESHOLD:
+            if primary_elbow_angle > EXTENDED_THRESHOLD:
                 state['current_phase'] = 'extended'
+                state['stable_frames'] = 0
+                feedback.append("Starting position detected")
         
         elif current_phase == 'extended':
-            if elbow_angle < CURLED_THRESHOLD:
+            if primary_elbow_angle < CURLED_THRESHOLD:
                 state['current_phase'] = 'curled'
+                state['stable_frames'] = 0
+                feedback.append("Curling up")
         
         elif current_phase == 'curled':
-            if elbow_angle > EXTENDED_THRESHOLD:
-                if state['frame_count'] - state['last_rep_frame'] > 10:
+            # Require stable frames in curled position
+            if primary_elbow_angle < CURLED_THRESHOLD + HYSTERESIS:
+                state['stable_frames'] += 1
+            
+            if primary_elbow_angle > EXTENDED_THRESHOLD and state['stable_frames'] >= 3:
+                # Check minimum time between reps
+                frames_since_last_rep = state['frame_count'] - state['last_rep_frame']
+                if frames_since_last_rep > 15:  # Minimum 1.5 seconds at 10 FPS
                     state['current_phase'] = 'extended'
                     state['rep_count'] += 1
                     state['last_rep_frame'] = state['frame_count']
+                    state['stable_frames'] = 0
                     rep_detected = True
+                    feedback.append(f"Bicep curl {state['rep_count']} completed!")
         
         # Form analysis
         accuracy_score = 1.0
         
-        # Check elbow stability
-        elbow_shoulder_dist = abs(landmarks['right_elbow'].x - landmarks['right_shoulder'].x)
-        if elbow_shoulder_dist > 0.15:
+        # Check elbow stability for primary arm
+        if primary_arm == 'left':
+            elbow_shoulder_dist = abs(landmarks['left_elbow'].x - landmarks['left_shoulder'].x)
+            elbow_y_movement = abs(landmarks['left_elbow'].y - landmarks['left_shoulder'].y)
+        else:
+            elbow_shoulder_dist = abs(landmarks['right_elbow'].x - landmarks['right_shoulder'].x)
+            elbow_y_movement = abs(landmarks['right_elbow'].y - landmarks['right_shoulder'].y)
+        
+        # 1. Check elbow stability (should stay close to body)
+        if elbow_shoulder_dist > 0.12:
             feedback.append("Keep your elbow stable at your side")
             accuracy_score -= 0.2
+        else:
+            feedback.append("Good elbow stability!")
         
-        # Check range of motion
-        if current_phase == 'curled' and elbow_angle > 70:
-            feedback.append("Curl higher for full range of motion")
-            accuracy_score -= 0.1
+        # 2. Check for elbow dropping (elbow should stay at shoulder level)
+        if elbow_y_movement > 0.1:
+            feedback.append("Keep your elbow up at shoulder level")
+            accuracy_score -= 0.15
         
-        if rep_detected:
-            feedback.append("Good curl! Keep elbow stable")
+        # 3. Check range of motion
+        if current_phase == 'curled':
+            if primary_elbow_angle > 60:
+                feedback.append("Curl higher for full range of motion")
+                accuracy_score -= 0.1
+            elif primary_elbow_angle < 30:
+                feedback.append("Perfect curl!")
+                accuracy_score += 0.05
+        
+        # 4. Check for controlled movement (not too fast)
+        if 'last_angle' in state:
+            angle_change = abs(primary_elbow_angle - state['last_angle'])
+            if angle_change > 30:  # Too fast movement
+                feedback.append("Control the movement - slower is better")
+                accuracy_score -= 0.1
+        
+        state['last_angle'] = primary_elbow_angle
         
         return ExerciseResult(
             rep_count=state['rep_count'],
             current_phase=state['current_phase'],
             form_feedback=feedback,
-            accuracy_score=max(0.0, accuracy_score),
+            accuracy_score=max(0.0, min(1.0, accuracy_score)),
             landmarks=landmarks,
             angle_data=angle_data
         )

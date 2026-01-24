@@ -298,55 +298,48 @@ class WorkoutApp {
         const videoRect = this.video.getBoundingClientRect();
         const containerRect = document.getElementById('camera-container').getBoundingClientRect();
         
-        // CRITICAL: Calculate the exact camera frame boundaries
-        // The video element may have black borders, but we need to align with the actual camera content
+        // SIMPLE APPROACH: Make canvas exactly match the video element
+        // Handle coordinate mapping in the drawing phase, not positioning phase
+        this.overlayCanvas.style.position = 'absolute';
+        this.overlayCanvas.style.left = (videoRect.left - containerRect.left) + 'px';
+        this.overlayCanvas.style.top = (videoRect.top - containerRect.top) + 'px';
+        this.overlayCanvas.style.width = videoRect.width + 'px';
+        this.overlayCanvas.style.height = videoRect.height + 'px';
         
+        // Set canvas internal dimensions to match video element
+        this.overlayCanvas.width = videoRect.width;
+        this.overlayCanvas.height = videoRect.height;
+        
+        // Calculate the actual video content area for coordinate mapping
         const videoNativeWidth = this.video.videoWidth;
         const videoNativeHeight = this.video.videoHeight;
         const videoNativeAspectRatio = videoNativeWidth / videoNativeHeight;
+        const videoDisplayAspectRatio = videoRect.width / videoRect.height;
         
-        const videoDisplayWidth = videoRect.width;
-        const videoDisplayHeight = videoRect.height;
-        const videoDisplayAspectRatio = videoDisplayWidth / videoDisplayHeight;
-        
-        // Calculate the actual camera frame dimensions within the video element
-        let actualFrameWidth, actualFrameHeight, frameOffsetX = 0, frameOffsetY = 0;
-        
+        // Store coordinate mapping parameters
         if (videoNativeAspectRatio > videoDisplayAspectRatio) {
-            // Camera frame is wider - black bars on top and bottom
-            actualFrameWidth = videoDisplayWidth;
-            actualFrameHeight = videoDisplayWidth / videoNativeAspectRatio;
-            frameOffsetY = (videoDisplayHeight - actualFrameHeight) / 2;
+            // Video is wider - letterboxing on top/bottom
+            this.contentWidth = videoRect.width;
+            this.contentHeight = videoRect.width / videoNativeAspectRatio;
+            this.contentOffsetX = 0;
+            this.contentOffsetY = (videoRect.height - this.contentHeight) / 2;
         } else {
-            // Camera frame is taller - black bars on left and right
-            actualFrameHeight = videoDisplayHeight;
-            actualFrameWidth = videoDisplayHeight * videoNativeAspectRatio;
-            frameOffsetX = (videoDisplayWidth - actualFrameWidth) / 2;
+            // Video is taller - letterboxing on left/right
+            this.contentHeight = videoRect.height;
+            this.contentWidth = videoRect.height * videoNativeAspectRatio;
+            this.contentOffsetX = (videoRect.width - this.contentWidth) / 2;
+            this.contentOffsetY = 0;
         }
         
-        // Position canvas to match EXACTLY the camera frame boundaries
-        const canvasLeft = videoRect.left - containerRect.left + frameOffsetX;
-        const canvasTop = videoRect.top - containerRect.top + frameOffsetY;
-        
-        this.overlayCanvas.style.position = 'absolute';
-        this.overlayCanvas.style.left = canvasLeft + 'px';
-        this.overlayCanvas.style.top = canvasTop + 'px';
-        this.overlayCanvas.style.width = actualFrameWidth + 'px';
-        this.overlayCanvas.style.height = actualFrameHeight + 'px';
-        
-        // Set canvas internal dimensions to match the actual camera frame
-        this.overlayCanvas.width = actualFrameWidth;
-        this.overlayCanvas.height = actualFrameHeight;
-        
-        // Store dimensions for skeleton drawing
-        this.canvasWidth = actualFrameWidth;
-        this.canvasHeight = actualFrameHeight;
-        
-        console.log('Camera Frame Alignment:', {
-            videoElement: { width: videoDisplayWidth, height: videoDisplayHeight },
-            cameraFrame: { width: actualFrameWidth, height: actualFrameHeight },
-            frameOffset: { x: frameOffsetX, y: frameOffsetY },
-            canvasPosition: { left: canvasLeft, top: canvasTop },
+        console.log('Canvas Alignment Debug:', {
+            videoElement: { width: videoRect.width, height: videoRect.height },
+            videoNative: { width: videoNativeWidth, height: videoNativeHeight },
+            contentArea: { 
+                width: this.contentWidth, 
+                height: this.contentHeight,
+                offsetX: this.contentOffsetX,
+                offsetY: this.contentOffsetY
+            },
             aspectRatios: { 
                 native: videoNativeAspectRatio.toFixed(3), 
                 display: videoDisplayAspectRatio.toFixed(3) 
@@ -805,8 +798,11 @@ class WorkoutApp {
         const canvasWidth = this.canvasWidth || this.overlayCanvas.width;
         const canvasHeight = this.canvasHeight || this.overlayCanvas.height;
         
-        // SIMPLE COORDINATE MAPPING: MediaPipe gives normalized coordinates (0-1)
-        // Just multiply by canvas dimensions - no complex transformations
+        // Use the content area dimensions for coordinate mapping
+        const contentWidth = this.contentWidth || canvasWidth;
+        const contentHeight = this.contentHeight || canvasHeight;
+        const offsetX = this.contentOffsetX || 0;
+        const offsetY = this.contentOffsetY || 0;
         
         // Drawing styles
         const lineWidth = Math.max(3, Math.min(6, canvasWidth / 150));
@@ -839,11 +835,11 @@ class WorkoutApp {
             if (landmarks[start] && landmarks[end] && 
                 landmarks[start].visibility > 0.5 && landmarks[end].visibility > 0.5) {
                 
-                // Simple coordinate conversion: normalized (0-1) to canvas pixels
-                const startX = landmarks[start].x * canvasWidth;
-                const startY = landmarks[start].y * canvasHeight;
-                const endX = landmarks[end].x * canvasWidth;
-                const endY = landmarks[end].y * canvasHeight;
+                // Map normalized coordinates to content area, then add offset
+                const startX = (landmarks[start].x * contentWidth) + offsetX;
+                const startY = (landmarks[start].y * contentHeight) + offsetY;
+                const endX = (landmarks[end].x * contentWidth) + offsetX;
+                const endY = (landmarks[end].y * contentHeight) + offsetY;
                 
                 this.overlayCtx.beginPath();
                 this.overlayCtx.moveTo(startX, startY);
@@ -855,9 +851,9 @@ class WorkoutApp {
         // Draw landmark points
         Object.entries(landmarks).forEach(([name, landmark]) => {
             if (landmark.visibility > 0.5) {
-                // Simple coordinate conversion
-                const x = landmark.x * canvasWidth;
-                const y = landmark.y * canvasHeight;
+                // Map normalized coordinates to content area, then add offset
+                const x = (landmark.x * contentWidth) + offsetX;
+                const y = (landmark.y * contentHeight) + offsetY;
                 
                 // Color coding for different body parts
                 if (name.includes('shoulder') || name.includes('elbow') || name.includes('wrist')) {
@@ -884,19 +880,21 @@ class WorkoutApp {
         // Debug info
         if (this.settings.debugMode) {
             const videoRect = this.video.getBoundingClientRect();
-            console.log('Skeleton Drawing Debug:', {
+            console.log('Skeleton Coordinate Mapping:', {
                 canvasSize: { width: canvasWidth, height: canvasHeight },
+                contentArea: { width: contentWidth, height: contentHeight },
+                offset: { x: offsetX, y: offsetY },
                 videoNative: { width: this.video.videoWidth, height: this.video.videoHeight },
                 videoDisplay: { width: videoRect.width, height: videoRect.height },
-                canvasPosition: { 
-                    left: this.overlayCanvas.style.left, 
-                    top: this.overlayCanvas.style.top 
-                },
                 sampleLandmark: landmarks.nose ? {
                     normalized: { x: landmarks.nose.x.toFixed(3), y: landmarks.nose.y.toFixed(3) },
-                    canvasPixel: { 
-                        x: Math.round(landmarks.nose.x * canvasWidth), 
-                        y: Math.round(landmarks.nose.y * canvasHeight) 
+                    contentMapped: { 
+                        x: Math.round(landmarks.nose.x * contentWidth), 
+                        y: Math.round(landmarks.nose.y * contentHeight) 
+                    },
+                    finalPosition: { 
+                        x: Math.round((landmarks.nose.x * contentWidth) + offsetX), 
+                        y: Math.round((landmarks.nose.y * contentHeight) + offsetY) 
                     }
                 } : null
             });
@@ -1028,50 +1026,66 @@ class WorkoutApp {
         this.updateCanvasSize();
         this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
         
-        const width = this.overlayCanvas.width;
-        const height = this.overlayCanvas.height;
+        const canvasWidth = this.overlayCanvas.width;
+        const canvasHeight = this.overlayCanvas.height;
         
-        // Draw frame boundary outline
+        // Draw canvas boundary (entire video element)
         this.overlayCtx.strokeStyle = '#ff0000';
-        this.overlayCtx.lineWidth = 3;
-        this.overlayCtx.strokeRect(0, 0, width, height);
+        this.overlayCtx.lineWidth = 2;
+        this.overlayCtx.strokeRect(0, 0, canvasWidth, canvasHeight);
         
-        // Draw crosshairs to show center
+        // Draw content area boundary (actual video content)
+        const contentWidth = this.contentWidth || canvasWidth;
+        const contentHeight = this.contentHeight || canvasHeight;
+        const offsetX = this.contentOffsetX || 0;
+        const offsetY = this.contentOffsetY || 0;
+        
         this.overlayCtx.strokeStyle = '#00ff00';
+        this.overlayCtx.lineWidth = 3;
+        this.overlayCtx.strokeRect(offsetX, offsetY, contentWidth, contentHeight);
+        
+        // Draw crosshairs in content area center
+        const centerX = offsetX + (contentWidth / 2);
+        const centerY = offsetY + (contentHeight / 2);
+        
+        this.overlayCtx.strokeStyle = '#ffff00';
         this.overlayCtx.lineWidth = 2;
         
         // Vertical center line
         this.overlayCtx.beginPath();
-        this.overlayCtx.moveTo(width / 2, 0);
-        this.overlayCtx.lineTo(width / 2, height);
+        this.overlayCtx.moveTo(centerX, offsetY);
+        this.overlayCtx.lineTo(centerX, offsetY + contentHeight);
         this.overlayCtx.stroke();
         
         // Horizontal center line
         this.overlayCtx.beginPath();
-        this.overlayCtx.moveTo(0, height / 2);
-        this.overlayCtx.lineTo(width, height / 2);
+        this.overlayCtx.moveTo(offsetX, centerY);
+        this.overlayCtx.lineTo(offsetX + contentWidth, centerY);
         this.overlayCtx.stroke();
         
-        // Corner markers to show exact frame boundaries
-        this.overlayCtx.fillStyle = '#ffff00';
+        // Corner markers for content area
+        this.overlayCtx.fillStyle = '#00ffff';
         const markerSize = 15;
         
-        // Top-left corner
-        this.overlayCtx.fillRect(0, 0, markerSize, markerSize);
-        // Top-right corner
-        this.overlayCtx.fillRect(width - markerSize, 0, markerSize, markerSize);
-        // Bottom-left corner
-        this.overlayCtx.fillRect(0, height - markerSize, markerSize, markerSize);
-        // Bottom-right corner
-        this.overlayCtx.fillRect(width - markerSize, height - markerSize, markerSize, markerSize);
+        // Content area corners
+        this.overlayCtx.fillRect(offsetX, offsetY, markerSize, markerSize);
+        this.overlayCtx.fillRect(offsetX + contentWidth - markerSize, offsetY, markerSize, markerSize);
+        this.overlayCtx.fillRect(offsetX, offsetY + contentHeight - markerSize, markerSize, markerSize);
+        this.overlayCtx.fillRect(offsetX + contentWidth - markerSize, offsetY + contentHeight - markerSize, markerSize, markerSize);
         
-        // Add text to show this is the camera frame boundary
+        // Add labels
         this.overlayCtx.fillStyle = '#ffffff';
-        this.overlayCtx.font = '16px Arial';
-        this.overlayCtx.fillText('CAMERA FRAME', 10, 30);
-        this.overlayCtx.fillText(`${width}x${height}`, 10, 50);
+        this.overlayCtx.font = '14px Arial';
+        this.overlayCtx.fillText('RED: Canvas Boundary', 10, 20);
+        this.overlayCtx.fillText('GREEN: Content Area', 10, 40);
+        this.overlayCtx.fillText(`Content: ${Math.round(contentWidth)}x${Math.round(contentHeight)}`, 10, 60);
+        this.overlayCtx.fillText(`Offset: ${Math.round(offsetX)}, ${Math.round(offsetY)}`, 10, 80);
         
-        console.log('Camera frame test pattern:', { width, height });
+        console.log('Test pattern with content area mapping:', { 
+            canvas: { width: canvasWidth, height: canvasHeight },
+            content: { width: contentWidth, height: contentHeight },
+            offset: { x: offsetX, y: offsetY }
+        });
     }
     
     startDurationTimer() {
