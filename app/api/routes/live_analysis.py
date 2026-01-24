@@ -34,7 +34,7 @@ class SessionResponse(BaseModel):
 async def live_analysis_page(request: Request):
     """Live analysis page"""
     return templates.TemplateResponse(
-        "live_analysis_new.html",
+        "live_analysis_clean.html",
         {"request": request, "title": "Live Analysis"}
     )
 

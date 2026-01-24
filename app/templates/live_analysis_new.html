@@ -89,6 +89,9 @@
                         <button id="stop-camera" class="btn btn-danger" disabled>
                             <i class="fas fa-video-slash"></i> Stop
                         </button>
+                        <button onclick="testCamera()" class="btn btn-outline-success">
+                            <i class="fas fa-flask"></i> Test
+                        </button>
                     </div>
                 </div>
                 
@@ -246,6 +249,22 @@
 
 {% block scripts %}
 <script>
+// Simple camera test function
+async function testCamera() {
+    console.log('Testing camera access...');
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        console.log('✅ Camera access successful!');
+        const video = document.getElementById('video');
+        video.srcObject = stream;
+        video.play();
+        return true;
+    } catch (error) {
+        console.error('❌ Camera access failed:', error);
+        return false;
+    }
+}
+
 class WorkoutAnalyzer {
     constructor() {
         // DOM elements
@@ -279,9 +298,15 @@ class WorkoutAnalyzer {
             frameRate: 10 // FPS
         };
         
-        // Performance tracking
-        this.frameCount = 0;
-        this.lastFpsTime = Date.now();
+        // Voice feedback management
+        this.lastSpokenFeedback = '';
+        this.lastSpeechTime = 0;
+        this.speechCooldown = 5000; // 5 seconds between general feedback
+        this.formFeedbackCooldown = 8000; // 8 seconds between form corrections
+        this.lastFormFeedback = '';
+        this.lastFormFeedbackTime = 0;
+        this.consecutiveFeedbackCount = 0;
+        this.feedbackHistory = new Set(); // Track recent feedback to avoid repetition
         
         // Exercise data
         this.exerciseInstructions = {
@@ -325,7 +350,10 @@ class WorkoutAnalyzer {
     
     setupEventListeners() {
         // Camera controls
-        document.getElementById('start-camera').addEventListener('click', () => this.startCamera());
+        document.getElementById('start-camera').addEventListener('click', () => {
+            console.log('Start camera button clicked');
+            this.startCamera();
+        });
         document.getElementById('switch-camera').addEventListener('click', () => this.switchCamera());
         document.getElementById('stop-camera').addEventListener('click', () => this.stopCamera());
         
@@ -342,10 +370,22 @@ class WorkoutAnalyzer {
         // Settings
         document.getElementById('show-skeleton').addEventListener('change', (e) => {
             this.settings.showSkeleton = e.target.checked;
+            console.log('Skeleton toggle changed:', this.settings.showSkeleton);
+            
+            // Clear overlay canvas when skeleton is turned off
+            if (!this.settings.showSkeleton) {
+                this.clearSkeletonOverlay();
+            }
         });
         
         document.getElementById('voice-feedback').addEventListener('change', (e) => {
             this.settings.voiceFeedback = e.target.checked;
+            
+            // Stop any ongoing speech when disabled
+            if (!this.settings.voiceFeedback && 'speechSynthesis' in window) {
+                speechSynthesis.cancel();
+                console.log('Voice feedback disabled - stopped speech');
+            }
         });
         
         document.getElementById('mirror-mode').addEventListener('change', (e) => {
@@ -389,60 +429,57 @@ class WorkoutAnalyzer {
             console.log('Detecting cameras...');
             
             if (this.isMobile) {
-                // For mobile, we need to try both facing modes to see what's available
-                this.availableCameras = [];
+                // For mobile, start with fallback cameras and detect later if needed
+                this.availableCameras = [
+                    { 
+                        deviceId: 'front', 
+                        label: 'Front Camera', 
+                        facingMode: 'user' 
+                    },
+                    { 
+                        deviceId: 'back', 
+                        label: 'Back Camera', 
+                        facingMode: 'environment' 
+                    }
+                ];
+                console.log('Mobile detected - using facingMode cameras');
                 
-                // Try to detect actual cameras first
+                // Try to get actual device list without requesting permission
                 if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
                     try {
-                        // Request permission first
-                        await navigator.mediaDevices.getUserMedia({ video: true });
-                        
                         const devices = await navigator.mediaDevices.enumerateDevices();
                         const videoDevices = devices.filter(device => device.kind === 'videoinput');
                         
-                        if (videoDevices.length > 0) {
-                            // Use actual device IDs for mobile
+                        if (videoDevices.length > 0 && videoDevices[0].label) {
+                            // Only use device IDs if we have labels (permission already granted)
                             this.availableCameras = videoDevices.map((device, index) => ({
                                 deviceId: device.deviceId,
                                 label: device.label || `Camera ${index + 1}`,
-                                facingMode: index === 0 ? 'user' : 'environment' // Guess facing mode
+                                facingMode: index === 0 ? 'user' : 'environment'
                             }));
-                            console.log('Mobile cameras detected:', this.availableCameras);
+                            console.log('Mobile cameras with labels detected:', this.availableCameras);
                         }
                     } catch (enumError) {
                         console.warn('Could not enumerate mobile devices:', enumError);
                     }
                 }
-                
-                // Fallback to facingMode if device enumeration failed
-                if (this.availableCameras.length === 0) {
-                    this.availableCameras = [
-                        { 
-                            deviceId: 'front', 
-                            label: 'Front Camera', 
-                            facingMode: 'user' 
-                        },
-                        { 
-                            deviceId: 'back', 
-                            label: 'Back Camera', 
-                            facingMode: 'environment' 
-                        }
-                    ];
-                    console.log('Using fallback mobile cameras');
-                }
             } else {
                 // Desktop camera detection
                 if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-                    const devices = await navigator.mediaDevices.enumerateDevices();
-                    const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                    
-                    if (videoDevices.length > 0) {
-                        this.availableCameras = videoDevices.map((device, index) => ({
-                            deviceId: device.deviceId,
-                            label: device.label || `Camera ${index + 1}`
-                        }));
-                    } else {
+                    try {
+                        const devices = await navigator.mediaDevices.enumerateDevices();
+                        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                        
+                        if (videoDevices.length > 0) {
+                            this.availableCameras = videoDevices.map((device, index) => ({
+                                deviceId: device.deviceId,
+                                label: device.label || `Camera ${index + 1}`
+                            }));
+                        } else {
+                            this.availableCameras = [{ deviceId: 'default', label: 'Default Camera' }];
+                        }
+                    } catch (enumError) {
+                        console.warn('Could not enumerate desktop devices:', enumError);
                         this.availableCameras = [{ deviceId: 'default', label: 'Default Camera' }];
                     }
                 } else {
@@ -485,77 +522,77 @@ class WorkoutAnalyzer {
     }
     
     async startCamera() {
+        console.log('=== Starting Camera ===');
+        
         try {
-            console.log('Starting camera...');
+            // Simple camera start for testing
+            console.log('Requesting camera access...');
             this.updateFeedback('Starting camera...', 'info');
             
-            const constraints = this.getCameraConstraints();
-            console.log('Camera constraints:', constraints);
+            // Try the simplest possible camera request first
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    width: 640, 
+                    height: 480 
+                } 
+            });
             
-            try {
-                this.currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-            } catch (constraintError) {
-                console.warn('Constraint failed, trying fallback:', constraintError);
-                
-                // Fallback for mobile
-                if (this.isMobile) {
-                    const fallbackConstraints = {
-                        video: {
-                            facingMode: 'user', // Start with front camera
-                            width: { ideal: 640 },
-                            height: { ideal: 480 }
-                        }
-                    };
-                    console.log('Trying mobile fallback constraints:', fallbackConstraints);
-                    this.currentStream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
-                } else {
-                    // Simple fallback for desktop
-                    this.currentStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                }
-            }
+            console.log('✅ Camera stream obtained');
             
-            this.video.srcObject = this.currentStream;
+            this.currentStream = stream;
+            this.video.srcObject = stream;
             
-            // Wait for video to load
+            console.log('Video element assigned stream');
+            
+            // Wait for video to be ready
             await new Promise((resolve, reject) => {
                 const timeout = setTimeout(() => {
-                    reject(new Error('Video load timeout'));
+                    console.error('Video timeout');
+                    reject(new Error('Video timeout'));
                 }, 10000);
                 
                 this.video.onloadedmetadata = () => {
+                    console.log('✅ Video metadata loaded');
                     clearTimeout(timeout);
-                    console.log('Video metadata loaded');
-                    this.video.play()
-                        .then(() => {
-                            console.log('Video playing');
-                            // Sync overlay after video starts playing
-                            setTimeout(() => {
-                                this.syncOverlayWithVideo();
-                            }, 100);
-                            resolve();
-                        })
-                        .catch(reject);
+                    
+                    this.video.play().then(() => {
+                        console.log('✅ Video playing');
+                        resolve();
+                    }).catch(err => {
+                        console.error('Video play error:', err);
+                        reject(err);
+                    });
                 };
                 
-                this.video.onerror = (error) => {
+                this.video.onerror = (err) => {
+                    console.error('Video element error:', err);
                     clearTimeout(timeout);
-                    reject(error);
+                    reject(err);
                 };
             });
             
             // Update UI
             document.getElementById('start-camera').disabled = true;
             document.getElementById('stop-camera').disabled = false;
-            this.updateCameraInfo();
-            this.updateStartButton();
-            this.updateVideoMirror();
             
-            this.updateFeedback('Camera started successfully!', 'success');
-            console.log('Camera started successfully');
+            this.updateFeedback('✅ Camera started successfully!', 'success');
+            console.log('=== Camera Start Complete ===');
             
         } catch (error) {
-            console.error('Camera start error:', error);
-            this.handleCameraError(error);
+            console.error('❌ Camera start failed:', error);
+            
+            let errorMessage = 'Camera failed: ';
+            if (error.name === 'NotAllowedError') {
+                errorMessage += 'Permission denied. Please allow camera access.';
+            } else if (error.name === 'NotFoundError') {
+                errorMessage += 'No camera found.';
+            } else if (error.name === 'NotReadableError') {
+                errorMessage += 'Camera in use by another app.';
+            } else {
+                errorMessage += error.message;
+            }
+            
+            this.updateFeedback(errorMessage, 'danger');
         }
     }
     
@@ -710,6 +747,14 @@ class WorkoutAnalyzer {
         this.updateCameraInfo();
         this.updateStartButton();
         
+        // Stop any ongoing speech
+        if ('speechSynthesis' in window) {
+            speechSynthesis.cancel();
+        }
+        
+        // Clear skeleton overlay
+        this.clearSkeletonOverlay();
+        
         this.updateFeedback('Camera stopped', 'info');
     }
     
@@ -798,29 +843,88 @@ class WorkoutAnalyzer {
     
     handleCameraError(error) {
         let message = 'Camera access failed: ';
+        let suggestion = '';
+        
+        console.error('Detailed camera error:', error);
         
         switch (error.name) {
             case 'NotAllowedError':
-                message += 'Permission denied. Please allow camera access and refresh.';
+                message += 'Permission denied.';
+                suggestion = 'Please allow camera access in your browser settings and refresh the page.';
                 break;
             case 'NotFoundError':
-                message += 'No camera found. Please connect a camera.';
+                message += 'No camera found.';
+                suggestion = 'Please connect a camera and try again.';
                 break;
             case 'NotReadableError':
                 message += 'Camera is being used by another application.';
+                suggestion = 'Please close other applications using the camera and try again.';
                 break;
             case 'OverconstrainedError':
-                message += 'Camera constraints not supported. Trying fallback...';
-                this.tryFallbackCamera();
+                message += 'Camera constraints not supported.';
+                suggestion = 'Trying with simpler settings...';
+                this.trySimplestCamera();
                 return;
             case 'NotSecureError':
-                message += 'Camera requires HTTPS. Please use a secure connection.';
+                message += 'Camera requires HTTPS.';
+                suggestion = 'Please use a secure connection (https://) or localhost.';
+                break;
+            case 'AbortError':
+                message += 'Camera access was aborted.';
+                suggestion = 'Please try again.';
                 break;
             default:
                 message += error.message || 'Unknown error occurred.';
+                suggestion = 'Please check your camera permissions and try again.';
         }
         
-        this.updateFeedback(message, 'danger');
+        this.updateFeedback(message + ' ' + suggestion, 'danger');
+        
+        // Reset UI state
+        document.getElementById('start-camera').disabled = false;
+        document.getElementById('stop-camera').disabled = true;
+        this.updateStartButton();
+    }
+    
+    async trySimplestCamera() {
+        try {
+            console.log('Trying simplest camera constraints...');
+            this.updateFeedback('Trying with basic camera settings...', 'warning');
+            
+            // Simplest possible constraints
+            const simpleConstraints = { video: true };
+            
+            this.currentStream = await navigator.mediaDevices.getUserMedia(simpleConstraints);
+            this.video.srcObject = this.currentStream;
+            
+            await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => reject(new Error('Simple camera timeout')), 10000);
+                
+                this.video.onloadedmetadata = () => {
+                    clearTimeout(timeout);
+                    this.video.play().then(resolve).catch(reject);
+                };
+            });
+            
+            // Update UI
+            document.getElementById('start-camera').disabled = true;
+            document.getElementById('stop-camera').disabled = false;
+            this.updateCameraInfo();
+            this.updateStartButton();
+            this.updateVideoMirror();
+            
+            this.updateFeedback('Camera started with basic settings', 'success');
+            console.log('Simple camera started successfully');
+            
+        } catch (simpleError) {
+            console.error('Simple camera also failed:', simpleError);
+            this.updateFeedback('All camera options failed. Please check your camera permissions and refresh the page.', 'danger');
+            
+            // Reset UI
+            document.getElementById('start-camera').disabled = false;
+            document.getElementById('stop-camera').disabled = true;
+            this.updateStartButton();
+        }
     }
     
     async tryFallbackCamera() {
@@ -939,6 +1043,13 @@ class WorkoutAnalyzer {
             
             this.updateFeedback(`Workout started! Exercise: ${exercise.replace('_', ' ')}`, 'success');
             
+            // Voice feedback for workout start
+            if (this.settings.voiceFeedback) {
+                setTimeout(() => {
+                    this.speakWorkoutStart(exercise);
+                }, 1000); // Delay to avoid overlap with other sounds
+            }
+            
         } catch (error) {
             console.error('Workout start error:', error);
             this.updateFeedback('Failed to start workout: ' + error.message, 'danger');
@@ -998,15 +1109,20 @@ class WorkoutAnalyzer {
                 
             case 'analysis_result':
                 this.updateStats(message.data);
+                // Handle skeleton display based on toggle
                 if (this.settings.showSkeleton && message.data.landmarks) {
                     this.drawSkeleton(message.data.landmarks);
+                } else if (!this.settings.showSkeleton) {
+                    // Clear skeleton when toggle is off
+                    this.clearSkeletonOverlay();
                 }
                 break;
                 
             case 'feedback':
                 this.addFeedbackToHistory(message.data.feedback);
-                if (this.settings.voiceFeedback) {
-                    this.speakFeedback(message.data.feedback);
+                // Only speak feedback if enabled and not repetitive
+                if (this.settings.voiceFeedback && message.data.feedback.length > 0) {
+                    this.speakFeedbackIntelligent(message.data.feedback);
                 }
                 break;
                 
@@ -1095,8 +1211,65 @@ class WorkoutAnalyzer {
     }
     
     updateRepCount(repCount, phase) {
+        const previousRep = parseInt(document.getElementById('rep-count').textContent) || 0;
+        
         document.getElementById('rep-count').textContent = repCount;
         document.getElementById('phase').textContent = phase;
+        
+        // Voice feedback for rep milestones
+        if (this.settings.voiceFeedback && repCount > previousRep) {
+            this.speakRepMilestone(repCount);
+        }
+    }
+    
+    speakRepMilestone(repCount) {
+        if (!this.settings.voiceFeedback || !('speechSynthesis' in window)) return;
+        
+        let message = '';
+        let shouldSpeak = false;
+        
+        // Strategic milestone messages - not too frequent
+        if (repCount === 1) {
+            message = 'First rep! Great start!';
+            shouldSpeak = true;
+        } else if (repCount === 5) {
+            message = 'Five reps completed! Keep going!';
+            shouldSpeak = true;
+        } else if (repCount === 10) {
+            message = 'Ten reps! You\'re doing great!';
+            shouldSpeak = true;
+        } else if (repCount === 15) {
+            message = 'Fifteen reps! Excellent endurance!';
+            shouldSpeak = true;
+        } else if (repCount === 20) {
+            message = 'Twenty reps! Outstanding work!';
+            shouldSpeak = true;
+        } else if (repCount === 25) {
+            message = 'Twenty-five reps! You\'re unstoppable!';
+            shouldSpeak = true;
+        } else if (repCount === 30) {
+            message = 'Thirty reps! Incredible dedication!';
+            shouldSpeak = true;
+        } else if (repCount % 20 === 0 && repCount > 30) {
+            message = `${repCount} reps! Amazing stamina!`;
+            shouldSpeak = true;
+        } else if (repCount % 10 === 0 && repCount > 30 && repCount % 20 !== 0) {
+            // Only every other 10-rep milestone after 30
+            const tensDigit = Math.floor(repCount / 10) % 2;
+            if (tensDigit === 0) {
+                message = `${repCount} reps! Keep pushing!`;
+                shouldSpeak = true;
+            }
+        }
+        
+        if (shouldSpeak && message) {
+            // Use milestone speech settings
+            this.speakText(message, 'milestone');
+            console.log('Speaking rep milestone:', message);
+            
+            // Reset consecutive feedback count for milestones
+            this.consecutiveFeedbackCount = 0;
+        }
     }
     
     drawSkeleton(landmarks) {
@@ -1199,6 +1372,13 @@ class WorkoutAnalyzer {
         console.log('Skeleton drawn with', Object.keys(landmarks).length, 'landmarks');
     }
     
+    clearSkeletonOverlay() {
+        // Clear the entire overlay canvas
+        this.overlayCtx.clearRect(0, 0, 640, 480);
+        console.log('Skeleton overlay cleared');
+    }
+    }
+    
     addFeedbackToHistory(feedback) {
         const historyDiv = document.getElementById('feedback-history');
         
@@ -1225,16 +1405,184 @@ class WorkoutAnalyzer {
         }
     }
     
-    speakFeedback(feedback) {
+    speakFeedbackIntelligent(feedback) {
         if (!this.settings.voiceFeedback || !('speechSynthesis' in window)) return;
         
-        // Speak the latest feedback
-        if (feedback.length > 0) {
-            const utterance = new SpeechSynthesisUtterance(feedback[feedback.length - 1]);
-            utterance.rate = 0.8;
-            utterance.volume = 0.7;
-            speechSynthesis.speak(utterance);
+        const now = Date.now();
+        const latestFeedback = feedback[feedback.length - 1];
+        
+        // Categorize feedback type
+        const feedbackType = this.categorizeFeedback(latestFeedback);
+        
+        // Skip if we've given this exact feedback recently
+        if (this.feedbackHistory.has(latestFeedback)) {
+            console.log('Skipping recent feedback:', latestFeedback);
+            return;
         }
+        
+        // Different cooldown periods for different types of feedback
+        let cooldownPeriod = this.speechCooldown;
+        let lastFeedbackTime = this.lastSpeechTime;
+        
+        if (feedbackType === 'form') {
+            cooldownPeriod = this.formFeedbackCooldown;
+            lastFeedbackTime = this.lastFormFeedbackTime;
+        }
+        
+        // Check if enough time has passed for this type of feedback
+        if ((now - lastFeedbackTime) < cooldownPeriod) {
+            console.log(`Skipping ${feedbackType} feedback due to cooldown:`, latestFeedback);
+            return;
+        }
+        
+        // Skip if we're giving too much feedback in a short time
+        if (this.consecutiveFeedbackCount >= 3 && (now - this.lastSpeechTime) < 15000) {
+            console.log('Skipping feedback - too much recent feedback');
+            return;
+        }
+        
+        // Determine if this feedback should be spoken
+        if (this.shouldSpeakFeedback(latestFeedback, feedbackType, now)) {
+            this.speakText(latestFeedback, feedbackType);
+            
+            // Update tracking
+            this.lastSpokenFeedback = latestFeedback;
+            this.lastSpeechTime = now;
+            
+            if (feedbackType === 'form') {
+                this.lastFormFeedback = latestFeedback;
+                this.lastFormFeedbackTime = now;
+            }
+            
+            // Add to history and clean old entries
+            this.feedbackHistory.add(latestFeedback);
+            this.consecutiveFeedbackCount++;
+            
+            // Clean feedback history after 30 seconds
+            setTimeout(() => {
+                this.feedbackHistory.delete(latestFeedback);
+            }, 30000);
+            
+            // Reset consecutive count after 20 seconds
+            setTimeout(() => {
+                this.consecutiveFeedbackCount = Math.max(0, this.consecutiveFeedbackCount - 1);
+            }, 20000);
+            
+            console.log(`Speaking ${feedbackType} feedback:`, latestFeedback);
+        }
+    }
+    
+    categorizeFeedback(feedback) {
+        const formKeywords = [
+            'deeper', 'higher', 'closer', 'straight', 'align', 'keep', 'focus',
+            'elbow', 'knee', 'chest', 'back', 'shoulder', 'hip', 'ankle',
+            'lower', 'raise', 'bend', 'extend', 'position', 'posture'
+        ];
+        
+        const encouragementKeywords = [
+            'excellent', 'perfect', 'great', 'good', 'amazing', 'outstanding',
+            'well done', 'keep it up', 'nice', 'fantastic'
+        ];
+        
+        const milestoneKeywords = [
+            'rep', 'reps', 'completed', 'milestone', 'achievement'
+        ];
+        
+        const feedbackLower = feedback.toLowerCase();
+        
+        if (formKeywords.some(keyword => feedbackLower.includes(keyword))) {
+            return 'form';
+        } else if (encouragementKeywords.some(keyword => feedbackLower.includes(keyword))) {
+            return 'encouragement';
+        } else if (milestoneKeywords.some(keyword => feedbackLower.includes(keyword))) {
+            return 'milestone';
+        } else {
+            return 'general';
+        }
+    }
+    
+    shouldSpeakFeedback(feedback, type, now) {
+        // Always skip generic system messages
+        const skipMessages = [
+            'select an exercise', 'start your workout', 'camera started',
+            'workout started', 'connected successfully', 'camera stopped',
+            'workout ended', 'session complete'
+        ];
+        
+        if (skipMessages.some(skip => feedback.toLowerCase().includes(skip))) {
+            return false;
+        }
+        
+        // Priority rules for different feedback types
+        switch (type) {
+            case 'form':
+                // Form feedback is important but shouldn't be too frequent
+                return (now - this.lastFormFeedbackTime) > this.formFeedbackCooldown;
+                
+            case 'encouragement':
+                // Encouragement should be given but not too often
+                return (now - this.lastSpeechTime) > (this.speechCooldown * 0.7);
+                
+            case 'milestone':
+                // Milestones are always important
+                return true;
+                
+            case 'general':
+                // General feedback follows normal cooldown
+                return (now - this.lastSpeechTime) > this.speechCooldown;
+                
+            default:
+                return false;
+        }
+    }
+    
+    speakText(text, type = 'general') {
+        // Cancel any ongoing speech
+        speechSynthesis.cancel();
+        
+        // Create and configure speech
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        // Adjust speech parameters based on feedback type
+        switch (type) {
+            case 'form':
+                utterance.rate = 0.85;
+                utterance.volume = 0.9;
+                utterance.pitch = 0.95;
+                break;
+            case 'encouragement':
+                utterance.rate = 1.0;
+                utterance.volume = 0.9;
+                utterance.pitch = 1.1;
+                break;
+            case 'milestone':
+                utterance.rate = 1.0;
+                utterance.volume = 1.0;
+                utterance.pitch = 1.15;
+                break;
+            default:
+                utterance.rate = 0.9;
+                utterance.volume = 0.8;
+                utterance.pitch = 1.0;
+        }
+        
+        // Use a more natural voice if available
+        const voices = speechSynthesis.getVoices();
+        const preferredVoice = voices.find(voice => 
+            voice.lang.startsWith('en') && 
+            (voice.name.includes('Google') || voice.name.includes('Microsoft') || voice.name.includes('Natural'))
+        );
+        if (preferredVoice) {
+            utterance.voice = preferredVoice;
+        }
+        
+        // Speak the feedback
+        speechSynthesis.speak(utterance);
+    }
+    
+    speakFeedback(feedback) {
+        // Legacy method - keeping for compatibility
+        this.speakFeedbackIntelligent(feedback);
     }
     
     startDurationTimer() {
@@ -1245,8 +1593,40 @@ class WorkoutAnalyzer {
                 const seconds = elapsed % 60;
                 document.getElementById('duration').textContent = 
                     `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                // Periodic motivational feedback during longer workouts
+                this.checkForMotivationalFeedback(elapsed);
             }
         }, 1000);
+    }
+    
+    checkForMotivationalFeedback(elapsedSeconds) {
+        if (!this.settings.voiceFeedback || !this.isWorkoutActive) return;
+        
+        const minutes = Math.floor(elapsedSeconds / 60);
+        const repCount = parseInt(document.getElementById('rep-count').textContent) || 0;
+        
+        // Give motivational feedback at specific time intervals
+        // But only if user is actively working out (has some reps)
+        if (repCount > 0) {
+            if (elapsedSeconds === 60) { // 1 minute
+                this.speakText("One minute in! You're doing great!", 'encouragement');
+            } else if (elapsedSeconds === 120) { // 2 minutes
+                this.speakText("Two minutes! Keep up the excellent work!", 'encouragement');
+            } else if (elapsedSeconds === 180) { // 3 minutes
+                this.speakText("Three minutes of solid work! You're crushing it!", 'encouragement');
+            } else if (minutes >= 4 && elapsedSeconds % 120 === 0) { // Every 2 minutes after 4 minutes
+                const motivationalMessages = [
+                    "You're in the zone! Keep going!",
+                    "Fantastic endurance! Don't stop now!",
+                    "You're stronger than you think!",
+                    "Every rep counts! You've got this!",
+                    "Your dedication is inspiring!"
+                ];
+                const randomMessage = motivationalMessages[Math.floor(Math.random() * motivationalMessages.length)];
+                this.speakText(randomMessage, 'encouragement');
+            }
+        }
     }
     
     startFpsCounter() {
@@ -1300,10 +1680,92 @@ class WorkoutAnalyzer {
         
         this.updateStartButton();
         this.updateFeedback('Workout ended!', 'info');
+        
+        // Clear skeleton overlay
+        this.clearSkeletonOverlay();
+        
+        // Voice feedback for workout end
+        if (this.settings.voiceFeedback) {
+            setTimeout(() => {
+                this.speakWorkoutEnd();
+            }, 500);
+        }
+    }
+    
+    speakWorkoutStart(exercise) {
+        if (!this.settings.voiceFeedback || !('speechSynthesis' in window)) return;
+        
+        const exerciseName = exercise.replace('_', ' ');
+        let message = '';
+        
+        // Exercise-specific start messages
+        switch (exercise) {
+            case 'push_ups':
+                message = "Let's start with push-ups! Keep your body straight and controlled movements.";
+                break;
+            case 'squats':
+                message = "Time for squats! Remember to keep your knees over your toes and go deep.";
+                break;
+            case 'bicep_curls':
+                message = "Bicep curls ready! Keep those elbows stable and control the movement.";
+                break;
+            default:
+                message = `Starting ${exerciseName} workout. Focus on your form and let's go!`;
+        }
+        
+        this.speakText(message, 'general');
+        console.log('Speaking workout start:', message);
+    }
+    
+    speakWorkoutEnd() {
+        if (!this.settings.voiceFeedback || !('speechSynthesis' in window)) return;
+        
+        const repCount = parseInt(document.getElementById('rep-count').textContent) || 0;
+        const duration = document.getElementById('duration').textContent;
+        const accuracy = document.getElementById('accuracy').textContent;
+        
+        let message = 'Workout complete!';
+        
+        if (repCount > 0) {
+            if (repCount >= 30) {
+                message = `Outstanding! ${repCount} reps in ${duration} with ${accuracy} accuracy. You're a champion!`;
+            } else if (repCount >= 20) {
+                message = `Excellent work! ${repCount} reps completed with ${accuracy} accuracy. Well done!`;
+            } else if (repCount >= 10) {
+                message = `Great job! ${repCount} reps with ${accuracy} accuracy. Keep building that strength!`;
+            } else {
+                message = `Good start! ${repCount} reps completed. Every rep counts!`;
+            }
+        }
+        
+        this.speakText(message, 'milestone');
+        console.log('Speaking workout end:', message);
     }
     
     handleSessionComplete(data) {
         console.log('Session complete:', data);
+        
+        // Voice feedback for session completion
+        if (this.settings.voiceFeedback) {
+            const totalReps = data.total_reps || 0;
+            const accuracy = Math.round((data.average_accuracy || 0) * 100);
+            let message = `Workout session complete!`;
+            
+            if (totalReps > 0) {
+                message = `Amazing! You completed ${totalReps} reps with ${accuracy}% accuracy!`;
+            }
+            
+            setTimeout(() => {
+                if (this.settings.voiceFeedback && 'speechSynthesis' in window) {
+                    speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(message);
+                    utterance.rate = 1.0;
+                    utterance.volume = 0.9;
+                    utterance.pitch = 1.1;
+                    speechSynthesis.speak(utterance);
+                }
+            }, 1000);
+        }
         
         // Show completion modal
         const modal = new bootstrap.Modal(document.getElementById('sessionCompleteModal'));
@@ -1375,6 +1837,31 @@ class WorkoutAnalyzer {
         this.updateStartButton();
         this.updateExerciseInstructions('');
     }
+    
+    // Debug function for testing camera access
+    async testCameraAccess() {
+        console.log('Testing camera access...');
+        
+        try {
+            // Test basic camera access
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            console.log('✅ Basic camera access: SUCCESS');
+            
+            // Test camera enumeration
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(d => d.kind === 'videoinput');
+            console.log('✅ Camera enumeration: SUCCESS', videoDevices);
+            
+            // Clean up test stream
+            stream.getTracks().forEach(track => track.stop());
+            
+            return { success: true, cameras: videoDevices };
+            
+        } catch (error) {
+            console.error('❌ Camera test failed:', error);
+            return { success: false, error: error };
+        }
+    }
 }
 
 // Global functions
@@ -1394,7 +1881,7 @@ function startNewWorkout() {
     
     // Clear overlay
     if (window.workoutAnalyzer) {
-        window.workoutAnalyzer.overlayCtx.clearRect(0, 0, 640, 480);
+        window.workoutAnalyzer.clearSkeletonOverlay();
     }
 }
 
