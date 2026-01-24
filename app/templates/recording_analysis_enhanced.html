@@ -1,0 +1,794 @@
+{% extends "base.html" %}
+
+{% block head %}
+<!-- Cache busting for development -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+
+<style>
+.upload-area {
+    border: 2px dashed #007bff;
+    border-radius: 10px;
+    padding: 40px;
+    text-align: center;
+    background-color: #f8f9fa;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.upload-area:hover {
+    border-color: #0056b3;
+    background-color: #e3f2fd;
+}
+
+.upload-area.dragover {
+    border-color: #28a745;
+    background-color: #d4edda;
+}
+
+.upload-icon {
+    font-size: 3rem;
+    color: #007bff;
+    margin-bottom: 1rem;
+}
+
+/* FORCE HIDE SECTIONS - IMPORTANT FOR INITIAL STATE */
+.progress-container,
+.analysis-status,
+.results-container,
+#progress-container,
+#analysis-section,
+#results-section {
+    display: none !important;
+}
+
+.timeline-item {
+    border-left: 3px solid #007bff;
+    padding-left: 15px;
+    margin-bottom: 15px;
+}
+
+.mistake-item {
+    border-left: 3px solid #dc3545;
+    padding-left: 15px;
+    margin-bottom: 10px;
+    background-color: #f8d7da;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.feedback-item {
+    background-color: #d1ecf1;
+    padding: 8px 12px;
+    border-radius: 5px;
+    margin-bottom: 5px;
+    border-left: 3px solid #17a2b8;
+}
+
+.stats-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.accuracy-meter {
+    width: 100%;
+    height: 20px;
+    background-color: #e9ecef;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+
+.accuracy-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #dc3545 0%, #ffc107 50%, #28a745 100%);
+    transition: width 0.5s ease;
+}
+
+/* Debug indicator */
+.cache-buster {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: #28a745;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 3px;
+    font-size: 12px;
+    z-index: 9999;
+}
+</style>
+{% endblock %}
+    background: linear-gradient(90deg, #dc3545 0%, #ffc107 50%, #28a745 100%);
+    transition: width 0.5s ease;
+}
+
+/* Debug styles */
+.debug-info {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    z-index: 9999;
+    display: none;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Cache Buster Indicator -->
+<div class="cache-buster" id="cache-indicator">
+    ✅ Fresh Load - v3.1
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <h2><i class="fas fa-video"></i> Recording Analysis</h2>
+        <p class="text-muted">Upload your workout video for comprehensive AI-powered analysis</p>
+    </div>
+</div>
+
+<!-- Upload Section - Should be visible by default -->
+<div class="row" id="upload-section" style="display: block;">
+    <div class="col-lg-8 mx-auto">
+        <div class="card shadow">
+            <div class="card-body">
+                <h4 class="card-title mb-4">Upload Workout Video</h4>
+                
+                <!-- Exercise Selection -->
+                <div class="mb-4">
+                    <label for="exercise-select" class="form-label">Select Exercise Type</label>
+                    <select class="form-select" id="exercise-select">
+                        <option value="auto_detect">Auto-detect from video</option>
+                        <option value="push_ups">Push-ups</option>
+                        <option value="squats">Squats</option>
+                        <option value="bicep_curls">Bicep Curls</option>
+                        <option value="lunges">Lunges</option>
+                        <option value="planks">Planks</option>
+                    </select>
+                </div>
+                
+                <!-- Upload Area -->
+                <div class="upload-area" id="upload-area">
+                    <div class="upload-icon">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <h5>Drag & Drop Your Video Here</h5>
+                    <p class="text-muted">or click to browse files</p>
+                    <p class="small text-muted">
+                        Supported formats: MP4, AVI, MOV, MKV<br>
+                        Maximum size: 100MB | Maximum duration: 10 minutes
+                    </p>
+                    <input type="file" id="video-input" accept="video/*" style="display: none;">
+                </div>
+                
+                <!-- Progress Bar - Hidden by default -->
+                <div class="progress-container" id="progress-container" style="display: none !important;">
+                    <h5>Uploading Video...</h5>
+                    <div class="progress mb-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             id="upload-progress" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div class="text-center">
+                        <small class="text-muted" id="upload-status">Preparing upload...</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analysis Status Section - Hidden by default -->
+<div class="row analysis-status" id="analysis-section" style="display: none !important;">
+    <div class="col-lg-8 mx-auto">
+        <div class="card shadow">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <h4 id="analysis-title">Analyzing Your Workout...</h4>
+                <p class="text-muted" id="analysis-message">This may take a few minutes depending on video length</p>
+                
+                <div class="progress mb-3">
+                    <div class="progress-bar" id="analysis-progress" role="progressbar" style="width: 0%"></div>
+                </div>
+                
+                <div class="row text-center mt-4">
+                    <div class="col-md-4">
+                        <h6 class="text-muted">Session ID</h6>
+                        <small id="session-id-display">-</small>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted">Exercise</h6>
+                        <small id="exercise-display">-</small>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted">Status</h6>
+                        <small id="status-display">Processing</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Results Section - Hidden by default -->
+<div class="row results-container" id="results-section" style="display: none !important;">
+    <div class="col-12">
+        <h3><i class="fas fa-chart-line"></i> Analysis Results</h3>
+        
+        <!-- Stats Overview -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stats-card text-center">
+                    <h3 id="total-reps">0</h3>
+                    <p class="mb-0">Total Reps</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card text-center">
+                    <h3 id="correct-reps">0</h3>
+                    <p class="mb-0">Correct Reps</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card text-center">
+                    <h3 id="accuracy-score">0%</h3>
+                    <p class="mb-0">Accuracy</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card text-center">
+                    <h3 id="calories-burned">0</h3>
+                    <p class="mb-0">Calories</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Detailed Analysis -->
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="card shadow mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-comments"></i> Form Feedback</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="feedback-list">
+                            <!-- Feedback items will be populated here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card shadow mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-exclamation-triangle"></i> Mistakes Identified</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="mistakes-list">
+                            <!-- Mistake items will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-6">
+                <div class="card shadow mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-clock"></i> Analysis Timeline</h5>
+                    </div>
+                    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                        <div id="timeline-list">
+                            <!-- Timeline items will be populated here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card shadow">
+                    <div class="card-header">
+                        <h5><i class="fas fa-download"></i> Export Options</h5>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-primary btn-block mb-2" id="download-report">
+                            <i class="fas fa-file-pdf"></i> Download PDF Report
+                        </button>
+                        <button class="btn btn-outline-secondary btn-block" id="view-video">
+                            <i class="fas fa-play"></i> View Analyzed Video
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+                
+                <div class="progress mb-3">
+                    <div class="progress-bar" id="analysis-progress" role="progressbar" style="width: 0%"></div>
+                </div>
+                
+                <div class="row text-center mt-4">
+                    <div class="col-md-4">
+                        <h6 class="text-muted">Session ID</h6>
+                        <small id="session-id-display">-</small>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted">Exercise</h6>
+                        <small id="exercise-display">-</small>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted">Status</h6>
+                        <small id="status-display">Processing</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Results Section - Hidden by default -->
+<div class="row results-container" id="results-section" style="display: none !important;">
+    <div class="col-12">
+        <h3><i class="fas fa-chart-line"></i> Analysis Results</h3>
+        
+        <!-- Stats Overview -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stats-card text-center">
+                    <h3 id="total-reps">0</h3>
+                    <p class="mb-0">Total Reps</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card text-center">
+                    <h3 id="correct-reps">0</h3>
+                    <p class="mb-0">Correct Reps</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card text-center">
+                    <h3 id="accuracy-score">0%</h3>
+                    <p class="mb-0">Accuracy</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card text-center">
+                    <h3 id="calories-burned">0</h3>
+                    <p class="mb-0">Calories</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Detailed Analysis -->
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="card shadow mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-comments"></i> Form Feedback</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="feedback-list">
+                            <!-- Feedback items will be populated here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card shadow mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-exclamation-triangle"></i> Mistakes Identified</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="mistakes-list">
+                            <!-- Mistake items will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-6">
+                <div class="card shadow mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-clock"></i> Analysis Timeline</h5>
+                    </div>
+                    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                        <div id="timeline-list">
+                            <!-- Timeline items will be populated here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card shadow">
+                    <div class="card-header">
+                        <h5><i class="fas fa-download"></i> Export Options</h5>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-primary btn-block mb-2" id="download-report">
+                            <i class="fas fa-file-pdf"></i> Download PDF Report
+                        </button>
+                        <button class="btn btn-outline-secondary btn-block" id="view-video">
+                            <i class="fas fa-play"></i> View Analyzed Video
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentSessionId = null;
+let analysisInterval = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Recording Analysis v3.1 - Page loaded');
+    
+    // Show cache buster indicator temporarily
+    const cacheIndicator = document.getElementById('cache-indicator');
+    if (cacheIndicator) {
+        setTimeout(() => {
+            cacheIndicator.style.display = 'none';
+        }, 5000); // Hide after 5 seconds
+    }
+    
+    // FORCE hide sections that should be hidden - CRITICAL FIX
+    const sectionsToHide = ['progress-container', 'analysis-section', 'results-section'];
+    sectionsToHide.forEach(sectionId => {
+        const element = document.getElementById(sectionId);
+        if (element) {
+            element.style.display = 'none';
+            element.style.visibility = 'hidden';
+            console.log(`✅ Forcibly hidden section: ${sectionId}`);
+        } else {
+            console.warn(`⚠️  Section not found: ${sectionId}`);
+        }
+    });
+    
+    // Ensure upload section is visible
+    const uploadSection = document.getElementById('upload-section');
+    if (uploadSection) {
+        uploadSection.style.display = 'block';
+        uploadSection.style.visibility = 'visible';
+        console.log('✅ Upload section is visible');
+    }
+    
+    const uploadArea = document.getElementById('upload-area');
+    const videoInput = document.getElementById('video-input');
+    const exerciseSelect = document.getElementById('exercise-select');
+    
+    if (!uploadArea || !videoInput || !exerciseSelect) {
+        console.error('❌ Required elements not found');
+        return;
+    }
+    
+    // Upload area click handler
+    uploadArea.addEventListener('click', () => {
+        console.log('📁 Upload area clicked');
+        videoInput.click();
+    });
+    
+    // Drag and drop handlers
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+    
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+    });
+    
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            console.log('📂 File dropped:', files[0].name);
+            handleFileUpload(files[0]);
+        }
+    });
+    
+    // File input change handler
+    videoInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            console.log('📁 File selected:', e.target.files[0].name);
+            handleFileUpload(e.target.files[0]);
+        }
+    });
+    
+    // Download report handler
+    const downloadButton = document.getElementById('download-report');
+    if (downloadButton) {
+        downloadButton.addEventListener('click', () => {
+            if (currentSessionId) {
+                downloadReport(currentSessionId);
+            }
+        });
+    }
+    
+    console.log('✅ Recording analysis initialized successfully');
+    
+    // Final check - log current state
+    setTimeout(() => {
+        const uploadVisible = document.getElementById('upload-section').style.display !== 'none';
+        const analysisHidden = document.getElementById('analysis-section').style.display === 'none';
+        const resultsHidden = document.getElementById('results-section').style.display === 'none';
+        
+        console.log('📊 Final UI State Check:');
+        console.log(`   Upload Section Visible: ${uploadVisible}`);
+        console.log(`   Analysis Section Hidden: ${analysisHidden}`);
+        console.log(`   Results Section Hidden: ${resultsHidden}`);
+        
+        if (uploadVisible && analysisHidden && resultsHidden) {
+            console.log('✅ UI State is CORRECT');
+        } else {
+            console.error('❌ UI State is INCORRECT - Check browser cache!');
+        }
+    }, 1000);
+});
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            console.log('File dropped:', files[0].name);
+            handleFileUpload(files[0]);
+        }
+    });
+    
+    // File input change handler
+    videoInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            console.log('File selected:', e.target.files[0].name);
+            handleFileUpload(e.target.files[0]);
+        }
+    });
+    
+    // Download report handler
+    const downloadButton = document.getElementById('download-report');
+    if (downloadButton) {
+        downloadButton.addEventListener('click', () => {
+            if (currentSessionId) {
+                downloadReport(currentSessionId);
+            }
+        });
+    }
+    
+    console.log('Recording analysis initialized successfully');
+});
+
+async function handleFileUpload(file) {
+    console.log('Starting file upload:', file.name, file.size, file.type);
+    
+    // Validate file
+    if (!validateFile(file)) {
+        return;
+    }
+    
+    // Show progress, hide upload
+    console.log('Showing progress section');
+    document.getElementById('upload-section').style.display = 'none';
+    document.getElementById('progress-container').style.display = 'block';
+    
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('exercise_name', document.getElementById('exercise-select').value);
+    formData.append('user_id', 'demo_user');
+    
+    try {
+        console.log('Uploading file to server...');
+        
+        // Upload file
+        const response = await fetch('/recording/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Upload failed: ${response.status} - ${errorText}`);
+        }
+        
+        const result = await response.json();
+        currentSessionId = result.session_id;
+        
+        console.log('Upload successful:', result);
+        
+        // Show analysis section
+        document.getElementById('progress-container').style.display = 'none';
+        document.getElementById('analysis-section').style.display = 'block';
+        
+        // Update session info
+        document.getElementById('session-id-display').textContent = currentSessionId;
+        document.getElementById('exercise-display').textContent = result.filename;
+        
+        // Start polling for analysis status
+        startAnalysisPolling();
+        
+    } catch (error) {
+        console.error('Upload error:', error);
+        alert('Upload failed: ' + error.message);
+        
+        // Reset UI
+        document.getElementById('progress-container').style.display = 'none';
+        document.getElementById('upload-section').style.display = 'block';
+    }
+}
+
+function validateFile(file) {
+    console.log('Validating file:', file.name, file.type, file.size);
+    
+    const allowedTypes = ['video/mp4', 'video/avi', 'video/mov', 'video/quicktime', 'video/x-msvideo'];
+    const maxSize = 100 * 1024 * 1024; // 100MB
+    
+    if (!allowedTypes.includes(file.type)) {
+        alert('Please select a valid video file (MP4, AVI, MOV, MKV)');
+        return false;
+    }
+    
+    if (file.size > maxSize) {
+        alert('File size must be less than 100MB');
+        return false;
+    }
+    
+    console.log('File validation passed');
+    return true;
+}
+
+function startAnalysisPolling() {
+    console.log('Starting analysis polling for session:', currentSessionId);
+    
+    analysisInterval = setInterval(async () => {
+        try {
+            const response = await fetch(`/recording/status/${currentSessionId}`);
+            const status = await response.json();
+            
+            console.log('Status update:', status);
+            
+            // Update progress
+            document.getElementById('analysis-progress').style.width = status.progress + '%';
+            document.getElementById('analysis-message').textContent = status.message;
+            document.getElementById('status-display').textContent = status.status;
+            
+            // Check if completed
+            if (status.status === 'completed') {
+                console.log('Analysis completed, loading results');
+                clearInterval(analysisInterval);
+                await loadAnalysisResults();
+            } else if (status.status === 'failed') {
+                console.error('Analysis failed');
+                clearInterval(analysisInterval);
+                alert('Analysis failed. Please try again.');
+                resetToUpload();
+            }
+            
+        } catch (error) {
+            console.error('Status check error:', error);
+        }
+    }, 2000); // Check every 2 seconds
+}
+
+async function loadAnalysisResults() {
+    try {
+        console.log('Loading analysis results for session:', currentSessionId);
+        
+        const response = await fetch(`/recording/results/${currentSessionId}`);
+        const results = await response.json();
+        
+        console.log('Analysis results:', results);
+        
+        // Hide analysis section, show results
+        document.getElementById('analysis-section').style.display = 'none';
+        document.getElementById('results-section').style.display = 'block';
+        
+        // Populate results
+        populateResults(results);
+        
+    } catch (error) {
+        console.error('Results loading error:', error);
+        alert('Failed to load analysis results');
+    }
+}
+
+function populateResults(results) {
+    console.log('Populating results:', results);
+    
+    // Update stats
+    document.getElementById('total-reps').textContent = results.total_reps;
+    document.getElementById('correct-reps').textContent = results.correct_reps;
+    document.getElementById('accuracy-score').textContent = Math.round(results.accuracy_score * 100) + '%';
+    document.getElementById('calories-burned').textContent = Math.round(results.calories_burned || 0);
+    
+    // Populate feedback
+    const feedbackList = document.getElementById('feedback-list');
+    feedbackList.innerHTML = '';
+    results.form_feedback.forEach(feedback => {
+        const item = document.createElement('div');
+        item.className = 'feedback-item';
+        item.textContent = feedback;
+        feedbackList.appendChild(item);
+    });
+    
+    // Populate mistakes
+    const mistakesList = document.getElementById('mistakes-list');
+    mistakesList.innerHTML = '';
+    results.mistakes.forEach(mistake => {
+        const item = document.createElement('div');
+        item.className = 'mistake-item';
+        item.innerHTML = `
+            <strong>Time: ${formatTime(mistake.timestamp)}</strong><br>
+            ${mistake.description}
+            <span class="badge bg-${getSeverityColor(mistake.severity)} ms-2">${mistake.severity}</span>
+        `;
+        mistakesList.appendChild(item);
+    });
+    
+    // Populate timeline
+    const timelineList = document.getElementById('timeline-list');
+    timelineList.innerHTML = '';
+    results.analysis_timeline.forEach(entry => {
+        const item = document.createElement('div');
+        item.className = 'timeline-item';
+        item.innerHTML = `
+            <strong>${formatTime(entry.timestamp)}</strong> - Rep ${entry.rep_count} (${entry.phase})<br>
+            <small class="text-muted">Accuracy: ${Math.round(entry.accuracy_score * 100)}%</small>
+        `;
+        timelineList.appendChild(item);
+    });
+}
+
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function getSeverityColor(severity) {
+    switch(severity) {
+        case 'low': return 'success';
+        case 'medium': return 'warning';
+        case 'high': return 'danger';
+        default: return 'secondary';
+    }
+}
+
+async function downloadReport(sessionId) {
+    try {
+        console.log('Downloading report for session:', sessionId);
+        
+        const response = await fetch(`/recording/report/${sessionId}`);
+        const result = await response.json();
+        
+        if (result.report_ready) {
+            // Download the PDF
+            window.open(`/recording/report/${sessionId}/download`, '_blank');
+        } else {
+            alert('PDF report generation is not yet implemented');
+        }
+        
+    } catch (error) {
+        console.error('Report download error:', error);
+        alert('Failed to download report');
+    }
+}
+
+function resetToUpload() {
+    console.log('Resetting to upload state');
+    
+    document.getElementById('analysis-section').style.display = 'none';
+    document.getElementById('results-section').style.display = 'none';
+    document.getElementById('upload-section').style.display = 'block';
+    currentSessionId = null;
+    
+    if (analysisInterval) {
+        clearInterval(analysisInterval);
+        analysisInterval = null;
+    }
+}
+</script>
+{% endblock %}
