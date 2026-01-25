@@ -1,6 +1,5 @@
 """
-Simple Video Annotator - Creates annotated videos with analysis overlay
-Matches the reference image: skeleton, rep counters, feedback
+Professional Video Annotator - Creates polished annotated videos with analysis overlay
 """
 import cv2
 import numpy as np
@@ -13,21 +12,31 @@ from app.services.mediapipe_service import mediapipe_service
 logger = logging.getLogger(__name__)
 
 class SimpleVideoAnnotator:
-    """Creates annotated videos with skeleton overlay and analysis data"""
+    """Creates professional annotated videos with skeleton overlay and analysis data"""
     
     def __init__(self):
-        # Colors (BGR format for OpenCV)
-        self.COLOR_CORRECT = (0, 255, 0)      # Green
-        self.COLOR_INCORRECT = (0, 0, 255)    # Red
-        self.COLOR_FEEDBACK = (255, 255, 255) # White
-        self.COLOR_SKELETON = (0, 255, 255)   # Yellow/Cyan
-        self.COLOR_JOINT = (255, 0, 255)      # Magenta
+        # Professional color scheme (BGR format for OpenCV)
+        self.COLOR_CORRECT = (76, 175, 80)        # Material Green
+        self.COLOR_INCORRECT = (244, 67, 54)      # Material Red
+        self.COLOR_FEEDBACK_BG = (33, 33, 33)     # Dark Gray
+        self.COLOR_FEEDBACK_TEXT = (255, 255, 255) # White
+        self.COLOR_SKELETON_PRIMARY = (255, 193, 7)  # Amber/Gold
+        self.COLOR_SKELETON_SECONDARY = (33, 150, 243) # Blue
+        self.COLOR_JOINT = (156, 39, 176)         # Purple
+        self.COLOR_OVERLAY_BG = (0, 0, 0)         # Black for backgrounds
         
-        # Font settings
-        self.FONT = cv2.FONT_HERSHEY_SIMPLEX
-        self.FONT_SCALE_LARGE = 1.0
-        self.FONT_SCALE_MEDIUM = 0.7
-        self.FONT_THICKNESS = 2
+        # Font settings - Professional
+        self.FONT = cv2.FONT_HERSHEY_DUPLEX  # More professional font
+        self.FONT_SCALE_LARGE = 0.9
+        self.FONT_SCALE_MEDIUM = 0.65
+        self.FONT_SCALE_SMALL = 0.5
+        self.FONT_THICKNESS_BOLD = 2
+        self.FONT_THICKNESS_NORMAL = 1
+        
+        # UI settings
+        self.PADDING = 15
+        self.CORNER_RADIUS = 8
+        self.SHADOW_OFFSET = 3
     
     async def create_annotated_video(
         self,
@@ -133,6 +142,9 @@ class SimpleVideoAnnotator:
                 
                 # Draw feedback (top left)
                 frame = self._draw_feedback(frame, current_feedback)
+                
+                # Draw professional branding (bottom center)
+                frame = self._draw_branding(frame, exercise_name)
                 
                 # Write annotated frame
                 out.write(frame)
@@ -242,141 +254,266 @@ class SimpleVideoAnnotator:
                     pass
     
     def _draw_skeleton(self, frame: np.ndarray, landmarks: Dict) -> np.ndarray:
-        """Draw skeleton overlay on frame"""
+        """Draw professional skeleton overlay with smooth lines and gradients"""
         if not landmarks:
             return frame
         
         height, width = frame.shape[:2]
         
-        # Define skeleton connections
-        connections = [
-            # Torso
+        # Create overlay for transparency effects
+        overlay = frame.copy()
+        
+        # Define skeleton connections with grouping
+        torso_connections = [
             ('left_shoulder', 'right_shoulder'),
             ('left_shoulder', 'left_hip'),
             ('right_shoulder', 'right_hip'),
             ('left_hip', 'right_hip'),
-            # Left arm
-            ('left_shoulder', 'left_elbow'),
-            ('left_elbow', 'left_wrist'),
-            # Right arm
-            ('right_shoulder', 'right_elbow'),
-            ('right_elbow', 'right_wrist'),
-            # Left leg
-            ('left_hip', 'left_knee'),
-            ('left_knee', 'left_ankle'),
-            # Right leg
-            ('right_hip', 'right_knee'),
-            ('right_knee', 'right_ankle')
         ]
         
-        # Draw connections (lines)
-        for start_name, end_name in connections:
-            if start_name in landmarks and end_name in landmarks:
-                start_landmark = landmarks[start_name]
-                end_landmark = landmarks[end_name]
-                
-                if start_landmark.visibility > 0.5 and end_landmark.visibility > 0.5:
-                    start_point = (int(start_landmark.x * width), int(start_landmark.y * height))
-                    end_point = (int(end_landmark.x * width), int(end_landmark.y * height))
+        left_arm_connections = [
+            ('left_shoulder', 'left_elbow'),
+            ('left_elbow', 'left_wrist'),
+        ]
+        
+        right_arm_connections = [
+            ('right_shoulder', 'right_elbow'),
+            ('right_elbow', 'right_wrist'),
+        ]
+        
+        left_leg_connections = [
+            ('left_hip', 'left_knee'),
+            ('left_knee', 'left_ankle'),
+        ]
+        
+        right_leg_connections = [
+            ('right_hip', 'right_knee'),
+            ('right_knee', 'right_ankle'),
+        ]
+        
+        # Draw connections with smooth anti-aliased lines
+        def draw_connection_group(connections, color, thickness=4):
+            for start_name, end_name in connections:
+                if start_name in landmarks and end_name in landmarks:
+                    start_landmark = landmarks[start_name]
+                    end_landmark = landmarks[end_name]
                     
-                    # Draw line with glow effect
-                    cv2.line(frame, start_point, end_point, (0, 0, 0), 6)  # Black outline
-                    cv2.line(frame, start_point, end_point, self.COLOR_SKELETON, 3)  # Cyan line
+                    if start_landmark.visibility > 0.5 and end_landmark.visibility > 0.5:
+                        start_point = (int(start_landmark.x * width), int(start_landmark.y * height))
+                        end_point = (int(end_landmark.x * width), int(end_landmark.y * height))
+                        
+                        # Draw shadow for depth
+                        shadow_offset = 2
+                        cv2.line(overlay, 
+                                (start_point[0] + shadow_offset, start_point[1] + shadow_offset),
+                                (end_point[0] + shadow_offset, end_point[1] + shadow_offset),
+                                (0, 0, 0), thickness + 2, cv2.LINE_AA)
+                        
+                        # Draw main line with anti-aliasing
+                        cv2.line(overlay, start_point, end_point, color, thickness, cv2.LINE_AA)
         
-        # Draw joints (circles)
-        key_joints = ['left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow',
-                      'left_wrist', 'right_wrist', 'left_hip', 'right_hip',
-                      'left_knee', 'right_knee', 'left_ankle', 'right_ankle']
+        # Draw different body parts with different colors
+        draw_connection_group(torso_connections, self.COLOR_SKELETON_PRIMARY, 5)
+        draw_connection_group(left_arm_connections, self.COLOR_SKELETON_SECONDARY, 4)
+        draw_connection_group(right_arm_connections, self.COLOR_SKELETON_SECONDARY, 4)
+        draw_connection_group(left_leg_connections, self.COLOR_SKELETON_PRIMARY, 4)
+        draw_connection_group(right_leg_connections, self.COLOR_SKELETON_PRIMARY, 4)
         
-        for joint_name in key_joints:
-            if joint_name in landmarks:
-                landmark = landmarks[joint_name]
-                if landmark.visibility > 0.5:
-                    point = (int(landmark.x * width), int(landmark.y * height))
-                    # Draw circle with glow
-                    cv2.circle(frame, point, 8, (0, 0, 0), -1)  # Black outline
-                    cv2.circle(frame, point, 6, self.COLOR_JOINT, -1)  # Magenta fill
-                    cv2.circle(frame, point, 6, (255, 255, 255), 1)  # White border
+        # Blend overlay with original frame for smooth appearance
+        cv2.addWeighted(overlay, 0.8, frame, 0.2, 0, frame)
+        
+        # Draw joints with professional styling
+        key_joints = {
+            'shoulders': ['left_shoulder', 'right_shoulder'],
+            'elbows': ['left_elbow', 'right_elbow'],
+            'wrists': ['left_wrist', 'right_wrist'],
+            'hips': ['left_hip', 'right_hip'],
+            'knees': ['left_knee', 'right_knee'],
+            'ankles': ['left_ankle', 'right_ankle']
+        }
+        
+        for joint_group, joint_names in key_joints.items():
+            for joint_name in joint_names:
+                if joint_name in landmarks:
+                    landmark = landmarks[joint_name]
+                    if landmark.visibility > 0.5:
+                        point = (int(landmark.x * width), int(landmark.y * height))
+                        
+                        # Draw shadow
+                        cv2.circle(frame, (point[0] + 2, point[1] + 2), 8, (0, 0, 0), -1, cv2.LINE_AA)
+                        
+                        # Draw outer ring
+                        cv2.circle(frame, point, 8, (255, 255, 255), 2, cv2.LINE_AA)
+                        
+                        # Draw inner fill
+                        cv2.circle(frame, point, 6, self.COLOR_JOINT, -1, cv2.LINE_AA)
         
         return frame
     
+    def _draw_rounded_rectangle(self, frame: np.ndarray, pt1: tuple, pt2: tuple, color: tuple, thickness: int = -1, radius: int = 8):
+        """Draw a rounded rectangle with smooth corners"""
+        x1, y1 = pt1
+        x2, y2 = pt2
+        
+        # Draw rectangles
+        cv2.rectangle(frame, (x1 + radius, y1), (x2 - radius, y2), color, thickness, cv2.LINE_AA)
+        cv2.rectangle(frame, (x1, y1 + radius), (x2, y2 - radius), color, thickness, cv2.LINE_AA)
+        
+        # Draw circles for corners
+        cv2.circle(frame, (x1 + radius, y1 + radius), radius, color, thickness, cv2.LINE_AA)
+        cv2.circle(frame, (x2 - radius, y1 + radius), radius, color, thickness, cv2.LINE_AA)
+        cv2.circle(frame, (x1 + radius, y2 - radius), radius, color, thickness, cv2.LINE_AA)
+        cv2.circle(frame, (x2 - radius, y2 - radius), radius, color, thickness, cv2.LINE_AA)
+        
+        return frame
+    
+    def _draw_text_with_background(self, frame: np.ndarray, text: str, position: tuple, 
+                                   font_scale: float, text_color: tuple, bg_color: tuple, 
+                                   padding: int = 10, alpha: float = 0.85):
+        """Draw text with a professional background box"""
+        x, y = position
+        
+        # Get text size
+        (text_width, text_height), baseline = cv2.getTextSize(
+            text, self.FONT, font_scale, self.FONT_THICKNESS_BOLD
+        )
+        
+        # Create overlay for transparency
+        overlay = frame.copy()
+        
+        # Draw shadow
+        shadow_offset = 3
+        self._draw_rounded_rectangle(
+            overlay,
+            (x - padding + shadow_offset, y - text_height - padding + shadow_offset),
+            (x + text_width + padding + shadow_offset, y + baseline + padding + shadow_offset),
+            (0, 0, 0),
+            -1,
+            self.CORNER_RADIUS
+        )
+        
+        # Draw background
+        self._draw_rounded_rectangle(
+            overlay,
+            (x - padding, y - text_height - padding),
+            (x + text_width + padding, y + baseline + padding),
+            bg_color,
+            -1,
+            self.CORNER_RADIUS
+        )
+        
+        # Blend overlay
+        cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+        
+        # Draw text with shadow
+        cv2.putText(frame, text, (x + 1, y + 1), self.FONT, font_scale, 
+                   (0, 0, 0), self.FONT_THICKNESS_BOLD + 1, cv2.LINE_AA)
+        cv2.putText(frame, text, (x, y), self.FONT, font_scale, 
+                   text_color, self.FONT_THICKNESS_BOLD, cv2.LINE_AA)
+        
+        return text_height + baseline + 2 * padding
+    
     def _draw_rep_counters(self, frame: np.ndarray, correct: int, incorrect: int) -> np.ndarray:
-        """Draw rep counters in top right corner (like reference image)"""
+        """Draw professional rep counters in top right corner"""
         height, width = frame.shape[:2]
         
-        # Position (top right)
+        # Position (top right with margin)
+        margin = 20
         x_offset = width - 280
-        y_offset = 30
+        y_offset = margin + 35
         
-        # Draw CORRECT counter (green)
+        # Draw CORRECT counter (without Unicode symbols)
         correct_text = f"CORRECT: {correct}"
-        text_size = cv2.getTextSize(correct_text, self.FONT, self.FONT_SCALE_LARGE, self.FONT_THICKNESS)[0]
+        y_offset += self._draw_text_with_background(
+            frame, correct_text, (x_offset, y_offset),
+            self.FONT_SCALE_LARGE, (255, 255, 255), self.COLOR_CORRECT,
+            padding=12, alpha=0.9
+        )
         
-        # Background rectangle
-        cv2.rectangle(frame,
-                     (x_offset - 10, y_offset - text_size[1] - 10),
-                     (x_offset + text_size[0] + 10, y_offset + 10),
-                     (0, 150, 0), -1)  # Dark green background
+        # Add spacing
+        y_offset += 10
         
-        # Checkmark icon
-        cv2.putText(frame, "✓", (x_offset - 5, y_offset),
-                   self.FONT, self.FONT_SCALE_LARGE, (255, 255, 255), self.FONT_THICKNESS)
-        
-        # Text
-        cv2.putText(frame, correct_text, (x_offset + 25, y_offset),
-                   self.FONT, self.FONT_SCALE_LARGE, self.COLOR_CORRECT, self.FONT_THICKNESS)
-        
-        # Draw INCORRECT counter (red)
-        y_offset += 50
+        # Draw INCORRECT counter (without Unicode symbols)
         incorrect_text = f"INCORRECT: {incorrect}"
-        text_size = cv2.getTextSize(incorrect_text, self.FONT, self.FONT_SCALE_LARGE, self.FONT_THICKNESS)[0]
-        
-        # Background rectangle
-        cv2.rectangle(frame,
-                     (x_offset - 10, y_offset - text_size[1] - 10),
-                     (x_offset + text_size[0] + 10, y_offset + 10),
-                     (0, 0, 150), -1)  # Dark red background
-        
-        # X icon
-        cv2.putText(frame, "✗", (x_offset - 5, y_offset),
-                   self.FONT, self.FONT_SCALE_LARGE, (255, 255, 255), self.FONT_THICKNESS)
-        
-        # Text
-        cv2.putText(frame, incorrect_text, (x_offset + 25, y_offset),
-                   self.FONT, self.FONT_SCALE_LARGE, self.COLOR_INCORRECT, self.FONT_THICKNESS)
+        self._draw_text_with_background(
+            frame, incorrect_text, (x_offset, y_offset),
+            self.FONT_SCALE_LARGE, (255, 255, 255), self.COLOR_INCORRECT,
+            padding=12, alpha=0.9
+        )
         
         return frame
     
     def _draw_feedback(self, frame: np.ndarray, feedback_list: List[str]) -> np.ndarray:
-        """Draw feedback in top left corner (like reference image)"""
+        """Draw professional feedback messages in top left corner"""
         if not feedback_list:
             return frame
         
         height, width = frame.shape[:2]
         
-        # Position (top left)
-        x_offset = 20
-        y_offset = 40
+        # Position (top left with margin)
+        margin = 20
+        x_offset = margin
+        y_offset = margin + 30
+        
+        # Draw title
+        y_offset += self._draw_text_with_background(
+            frame, "FORM FEEDBACK", (x_offset, y_offset),
+            self.FONT_SCALE_MEDIUM, (255, 193, 7), self.COLOR_FEEDBACK_BG,
+            padding=8, alpha=0.85
+        )
+        
+        y_offset += 8
         
         # Draw each feedback message
         for feedback in feedback_list[:3]:  # Max 3 messages
             # Truncate if too long
-            if len(feedback) > 25:
-                feedback = feedback[:22] + "..."
+            if len(feedback) > 35:
+                feedback = feedback[:32] + "..."
             
-            text_size = cv2.getTextSize(feedback, self.FONT, self.FONT_SCALE_MEDIUM, self.FONT_THICKNESS)[0]
+            y_offset += self._draw_text_with_background(
+                frame, feedback, (x_offset, y_offset),
+                self.FONT_SCALE_SMALL, self.COLOR_FEEDBACK_TEXT, self.COLOR_FEEDBACK_BG,
+                padding=8, alpha=0.8
+            )
             
-            # Background rectangle (red for warnings)
-            cv2.rectangle(frame,
-                         (x_offset - 5, y_offset - text_size[1] - 5),
-                         (x_offset + text_size[0] + 5, y_offset + 5),
-                         (0, 0, 150), -1)  # Dark red background
-            
-            # Text
-            cv2.putText(frame, feedback, (x_offset, y_offset),
-                       self.FONT, self.FONT_SCALE_MEDIUM, self.COLOR_FEEDBACK, self.FONT_THICKNESS)
-            
-            y_offset += 40
+            y_offset += 5
+        
+        return frame
+
+    def _draw_branding(self, frame: np.ndarray, exercise_name: str) -> np.ndarray:
+        """Draw professional branding at the bottom"""
+        height, width = frame.shape[:2]
+        
+        # Position (bottom center)
+        exercise_display = exercise_name.replace('_', ' ').upper()
+        branding_text = f"{exercise_display} ANALYSIS"  # Removed emoji
+        
+        # Get text size
+        (text_width, text_height), baseline = cv2.getTextSize(
+            branding_text, self.FONT, self.FONT_SCALE_MEDIUM, self.FONT_THICKNESS_NORMAL
+        )
+        
+        x_offset = (width - text_width) // 2
+        y_offset = height - 30
+        
+        # Create semi-transparent overlay
+        overlay = frame.copy()
+        
+        # Draw background bar
+        bar_height = 50
+        cv2.rectangle(overlay, (0, height - bar_height), (width, height), 
+                     self.COLOR_OVERLAY_BG, -1)
+        
+        # Blend
+        cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
+        
+        # Draw text with glow effect
+        cv2.putText(frame, branding_text, (x_offset + 2, y_offset + 2), 
+                   self.FONT, self.FONT_SCALE_MEDIUM, (0, 0, 0), 
+                   self.FONT_THICKNESS_BOLD, cv2.LINE_AA)
+        cv2.putText(frame, branding_text, (x_offset, y_offset), 
+                   self.FONT, self.FONT_SCALE_MEDIUM, self.COLOR_SKELETON_PRIMARY, 
+                   self.FONT_THICKNESS_NORMAL, cv2.LINE_AA)
         
         return frame
 
