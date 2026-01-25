@@ -292,9 +292,15 @@
                         <button class="btn btn-primary btn-block mb-2" id="download-report">
                             <i class="fas fa-file-pdf"></i> Download PDF Report
                         </button>
-                        <button class="btn btn-outline-secondary btn-block" id="view-video">
-                            <i class="fas fa-play"></i> View Analyzed Video
+                        <button class="btn btn-success btn-block mb-2" id="view-annotated-video" style="display: none;">
+                            <i class="fas fa-play-circle"></i> View Annotated Video
                         </button>
+                        <button class="btn btn-outline-secondary btn-block" id="view-video">
+                            <i class="fas fa-play"></i> View Original Video
+                        </button>
+                        <small class="text-muted d-block mt-2">
+                            <i class="fas fa-info-circle"></i> Annotated video includes skeleton overlay, rep counters, and real-time feedback
+                        </small>
                     </div>
                 </div>
             </div>
@@ -307,45 +313,34 @@ let currentSessionId = null;
 let analysisInterval = null;
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Recording Analysis v3.2 - Page loaded');
+    console.log('🚀 Recording Analysis v3.4 - Page loaded');
     
     // Show cache buster indicator temporarily
     const cacheIndicator = document.getElementById('cache-indicator');
     if (cacheIndicator) {
         setTimeout(() => {
             cacheIndicator.style.display = 'none';
-        }, 5000); // Hide after 5 seconds
+        }, 5000);
     }
     
-    // FORCE hide sections that should be hidden - CRITICAL FIX
-    const sectionsToHide = ['progress-container', 'analysis-section', 'results-section'];
-    sectionsToHide.forEach(sectionId => {
-        const element = document.getElementById(sectionId);
-        if (element) {
-            element.style.display = 'none';
-            element.style.visibility = 'hidden';
-            console.log(`✅ Forcibly hidden section: ${sectionId}`);
-        } else {
-            console.warn(`⚠️  Section not found: ${sectionId}`);
-        }
-    });
-    
-    // Ensure upload section is visible
-    const uploadSection = document.getElementById('upload-section');
-    if (uploadSection) {
-        uploadSection.style.display = 'block';
-        uploadSection.style.visibility = 'visible';
-        console.log('✅ Upload section is visible');
-    }
-    
+    // Get elements
     const uploadArea = document.getElementById('upload-area');
     const videoInput = document.getElementById('video-input');
     const exerciseSelect = document.getElementById('exercise-select');
     
+    console.log('Elements found:', {
+        uploadArea: !!uploadArea,
+        videoInput: !!videoInput,
+        exerciseSelect: !!exerciseSelect
+    });
+    
     if (!uploadArea || !videoInput || !exerciseSelect) {
         console.error('❌ Required elements not found');
+        alert('Error: Upload form not properly loaded. Please refresh the page.');
         return;
     }
+    
+    console.log('✅ All elements found, setting up event listeners...');
     
     // Upload area click handler
     uploadArea.addEventListener('click', () => {
@@ -385,9 +380,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Download report handler
     const downloadButton = document.getElementById('download-report');
     if (downloadButton) {
-        downloadButton.addEventListener('click', () => {
+        downloadButton.addEventListener('click', async () => {
             if (currentSessionId) {
-                downloadReport(currentSessionId);
+                await downloadReport(currentSessionId);
             } else {
                 alert('No session available. Please upload and analyze a video first.');
             }
@@ -397,9 +392,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // View video handler
     const viewVideoButton = document.getElementById('view-video');
     if (viewVideoButton) {
-        viewVideoButton.addEventListener('click', () => {
+        viewVideoButton.addEventListener('click', async () => {
             if (currentSessionId) {
-                viewAnalyzedVideo(currentSessionId);
+                await viewOriginalVideo(currentSessionId);
             } else {
                 alert('No session available. Please upload and analyze a video first.');
             }
@@ -407,24 +402,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     console.log('✅ Recording analysis initialized successfully');
-    
-    // Final check - log current state
-    setTimeout(() => {
-        const uploadVisible = document.getElementById('upload-section').style.display !== 'none';
-        const analysisHidden = document.getElementById('analysis-section').style.display === 'none';
-        const resultsHidden = document.getElementById('results-section').style.display === 'none';
-        
-        console.log('📊 Final UI State Check:');
-        console.log(`   Upload Section Visible: ${uploadVisible}`);
-        console.log(`   Analysis Section Hidden: ${analysisHidden}`);
-        console.log(`   Results Section Hidden: ${resultsHidden}`);
-        
-        if (uploadVisible && analysisHidden && resultsHidden) {
-            console.log('✅ UI State is CORRECT');
-        } else {
-            console.error('❌ UI State is INCORRECT - Check browser cache!');
-        }
-    }, 1000);
 });
 
 async function handleFileUpload(file) {
@@ -441,6 +418,10 @@ async function handleFileUpload(file) {
     document.getElementById('progress-container').style.display = 'block';
     document.getElementById('progress-container').style.visibility = 'visible';
     
+    // Update status
+    document.getElementById('upload-status').textContent = 'Uploading and processing video...';
+    document.getElementById('upload-progress').style.width = '10%';
+    
     // Prepare form data
     const formData = new FormData();
     formData.append('file', file);
@@ -450,8 +431,8 @@ async function handleFileUpload(file) {
     try {
         console.log('📤 Uploading file to server...');
         
-        // Upload file
-        const response = await fetch('/recording/upload', {
+        // Upload and process (NEW ENDPOINT)
+        const response = await fetch('/recording/upload-simple', {
             method: 'POST',
             body: formData
         });
@@ -464,19 +445,17 @@ async function handleFileUpload(file) {
         const result = await response.json();
         currentSessionId = result.session_id;
         
-        console.log('✅ Upload successful:', result);
+        console.log('✅ Processing complete:', result);
         
-        // Show analysis section
-        document.getElementById('progress-container').style.display = 'none';
-        document.getElementById('analysis-section').style.display = 'block';
-        document.getElementById('analysis-section').style.visibility = 'visible';
+        // Update progress to 100%
+        document.getElementById('upload-progress').style.width = '100%';
+        document.getElementById('upload-status').textContent = 'Analysis complete!';
         
-        // Update session info
-        document.getElementById('session-id-display').textContent = currentSessionId;
-        document.getElementById('exercise-display').textContent = result.filename;
-        
-        // Start polling for analysis status
-        startAnalysisPolling();
+        // Wait a moment then show results
+        setTimeout(async () => {
+            document.getElementById('progress-container').style.display = 'none';
+            await loadAnalysisResults();
+        }, 1000);
         
     } catch (error) {
         console.error('❌ Upload error:', error);
@@ -573,42 +552,63 @@ function populateResults(results) {
     document.getElementById('accuracy-score').textContent = Math.round(results.accuracy_score * 100) + '%';
     document.getElementById('calories-burned').textContent = Math.round(results.calories_burned || 0);
     
+    // Show annotated video button if available
+    if (results.annotated_video_url) {
+        const annotatedButton = document.getElementById('view-annotated-video');
+        if (annotatedButton) {
+            annotatedButton.style.display = 'block';
+            console.log('✅ Annotated video available');
+        }
+    }
+    
     // Populate feedback
     const feedbackList = document.getElementById('feedback-list');
     feedbackList.innerHTML = '';
-    results.form_feedback.forEach(feedback => {
-        const item = document.createElement('div');
-        item.className = 'feedback-item';
-        item.textContent = feedback;
-        feedbackList.appendChild(item);
-    });
+    if (results.form_feedback && results.form_feedback.length > 0) {
+        results.form_feedback.forEach(feedback => {
+            const item = document.createElement('div');
+            item.className = 'feedback-item';
+            item.textContent = feedback;
+            feedbackList.appendChild(item);
+        });
+    } else {
+        feedbackList.innerHTML = '<p class="text-muted">No specific feedback available</p>';
+    }
     
     // Populate mistakes
     const mistakesList = document.getElementById('mistakes-list');
     mistakesList.innerHTML = '';
-    results.mistakes.forEach(mistake => {
-        const item = document.createElement('div');
-        item.className = 'mistake-item';
-        item.innerHTML = `
-            <strong>Time: ${formatTime(mistake.timestamp)}</strong><br>
-            ${mistake.description}
-            <span class="badge bg-${getSeverityColor(mistake.severity)} ms-2">${mistake.severity}</span>
-        `;
-        mistakesList.appendChild(item);
-    });
+    if (results.mistakes && results.mistakes.length > 0) {
+        results.mistakes.forEach(mistake => {
+            const item = document.createElement('div');
+            item.className = 'mistake-item';
+            item.innerHTML = `
+                <strong>Time: ${formatTime(mistake.timestamp)}</strong><br>
+                ${mistake.description}
+                <span class="badge bg-${getSeverityColor(mistake.severity)} ms-2">${mistake.severity}</span>
+            `;
+            mistakesList.appendChild(item);
+        });
+    } else {
+        mistakesList.innerHTML = '<p class="text-success">No major mistakes detected! Great form!</p>';
+    }
     
     // Populate timeline
     const timelineList = document.getElementById('timeline-list');
     timelineList.innerHTML = '';
-    results.analysis_timeline.forEach(entry => {
-        const item = document.createElement('div');
-        item.className = 'timeline-item';
-        item.innerHTML = `
-            <strong>${formatTime(entry.timestamp)}</strong> - Rep ${entry.rep_count} (${entry.phase})<br>
-            <small class="text-muted">Accuracy: ${Math.round(entry.accuracy_score * 100)}%</small>
-        `;
-        timelineList.appendChild(item);
-    });
+    if (results.analysis_timeline && results.analysis_timeline.length > 0) {
+        results.analysis_timeline.forEach(entry => {
+            const item = document.createElement('div');
+            item.className = 'timeline-item';
+            item.innerHTML = `
+                <strong>${formatTime(entry.timestamp)}</strong> - Rep ${entry.rep_count} (${entry.phase})<br>
+                <small class="text-muted">Accuracy: ${Math.round(entry.accuracy_score * 100)}%</small>
+            `;
+            timelineList.appendChild(item);
+        });
+    } else {
+        timelineList.innerHTML = '<p class="text-muted">No timeline data available</p>';
+    }
 }
 
 function formatTime(seconds) {
@@ -675,9 +675,195 @@ async function downloadReport(sessionId) {
     }
 }
 
-async function viewAnalyzedVideo(sessionId) {
+async function viewAnalyzedVideo(sessionId, viewAnnotated = false) {
     try {
-        console.log('🎥 Loading video for session:', sessionId);
+        const videoType = viewAnnotated ? 'annotated' : 'original';
+        console.log(`🎥 Loading ${videoType} video for session:`, sessionId);
+        
+        // Show loading state
+        const buttonId = viewAnnotated ? 'view-annotated-video' : 'view-video';
+        const viewButton = document.getElementById(buttonId);
+        const originalText = viewButton.innerHTML;
+        viewButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading Video...';
+        viewButton.disabled = true;
+        
+        // Get video data
+        const response = await fetch(`/recording/results/${sessionId}`);
+        
+        if (!response.ok) {
+            throw new Error(`Failed to get video: ${response.status}`);
+        }
+        
+        const videoData = await response.json();
+        
+        // Determine which video URL to use
+        let videoUrl, videoTitle, videoDescription;
+        
+        if (viewAnnotated && videoData.annotated_video_url) {
+            videoUrl = videoData.annotated_video_url;
+            videoTitle = `Annotated Analysis - ${videoData.exercise_name.replace('_', ' ').toUpperCase()}`;
+            videoDescription = `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i> 
+                    <strong>Annotated Video:</strong> This video includes skeleton overlay, rep counters (correct/incorrect), 
+                    and real-time form feedback displayed during your workout.
+                </div>
+            `;
+        } else if (videoData.video_url) {
+            videoUrl = videoData.video_url;
+            videoTitle = `Original Video - ${videoData.exercise_name.replace('_', ' ').toUpperCase()}`;
+            videoDescription = `
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> 
+                    This is your original uploaded video without analysis overlay.
+                </div>
+            `;
+        } else {
+            throw new Error('No video available');
+        }
+        
+        // Create modal to display video
+        const modal = document.createElement('div');
+        modal.className = 'modal fade';
+        modal.id = 'videoModal';
+        modal.innerHTML = `
+            <div class="modal-dialog modal-xl modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-video"></i> ${videoTitle}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        ${videoDescription}
+                        <video controls class="w-100" style="max-height: 600px; background: #000;">
+                            <source src="${videoUrl}" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        <div class="mt-3 row">
+                            <div class="col-md-4">
+                                <p class="mb-1"><strong>Exercise:</strong> ${videoData.exercise_name.replace('_', ' ')}</p>
+                            </div>
+                            <div class="col-md-4">
+                                <p class="mb-1"><strong>Total Reps:</strong> ${videoData.total_reps}</p>
+                            </div>
+                            <div class="col-md-4">
+                                <p class="mb-1"><strong>Accuracy:</strong> ${Math.round(videoData.accuracy_score * 100)}%</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <a href="${videoUrl}" download class="btn btn-success">
+                            <i class="fas fa-download"></i> Download Video
+                        </a>
+                        <a href="${videoUrl}" target="_blank" class="btn btn-primary">
+                            <i class="fas fa-external-link-alt"></i> Open in New Tab
+                        </a>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Show modal using Bootstrap
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+        
+        // Cleanup modal when closed
+        modal.addEventListener('hidden.bs.modal', () => {
+            document.body.removeChild(modal);
+        });
+        
+        console.log(`✅ ${videoType} video loaded successfully`);
+        
+        // Reset button
+        viewButton.innerHTML = originalText;
+        viewButton.disabled = false;
+        
+    } catch (error) {
+        console.error('❌ Video loading error:', error);
+        alert('Failed to load video: ' + error.message);
+        
+        // Reset button
+        const buttonId = viewAnnotated ? 'view-annotated-video' : 'view-video';
+        const viewButton = document.getElementById(buttonId);
+        const icon = viewAnnotated ? 'play-circle' : 'play';
+        const text = viewAnnotated ? 'View Annotated Video' : 'View Original Video';
+        viewButton.innerHTML = `<i class="fas fa-${icon}"></i> ${text}`;
+        viewButton.disabled = false;
+    }
+}
+
+function resetToUpload() {
+    console.log('🔄 Resetting to upload state');
+    
+    document.getElementById('analysis-section').style.display = 'none';
+    document.getElementById('results-section').style.display = 'none';
+    document.getElementById('upload-section').style.display = 'block';
+    document.getElementById('upload-section').style.visibility = 'visible';
+    currentSessionId = null;
+    
+    if (analysisInterval) {
+        clearInterval(analysisInterval);
+        analysisInterval = null;
+    }
+}
+
+async function downloadReport(sessionId) {
+    try {
+        console.log('📄 Downloading PDF report for session:', sessionId);
+        
+        // Show loading state
+        const downloadButton = document.getElementById('download-report');
+        const originalText = downloadButton.innerHTML;
+        downloadButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating PDF...';
+        downloadButton.disabled = true;
+        
+        // Download PDF
+        const response = await fetch(`/recording/report/${sessionId}`);
+        
+        if (!response.ok) {
+            throw new Error(`Failed to generate report: ${response.status}`);
+        }
+        
+        // Get the PDF blob
+        const blob = await response.blob();
+        
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `workout_report_${sessionId.substring(0, 8)}_${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Cleanup
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        console.log('✅ PDF report downloaded successfully');
+        
+        // Reset button
+        downloadButton.innerHTML = originalText;
+        downloadButton.disabled = false;
+        
+    } catch (error) {
+        console.error('❌ Report download error:', error);
+        alert('Failed to download report: ' + error.message);
+        
+        // Reset button
+        const downloadButton = document.getElementById('download-report');
+        downloadButton.innerHTML = '<i class="fas fa-file-pdf"></i> Download PDF Report';
+        downloadButton.disabled = false;
+    }
+}
+
+async function viewOriginalVideo(sessionId) {
+    try {
+        console.log('🎥 Loading original video for session:', sessionId);
         
         // Show loading state
         const viewButton = document.getElementById('view-video');
@@ -685,7 +871,7 @@ async function viewAnalyzedVideo(sessionId) {
         viewButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading Video...';
         viewButton.disabled = true;
         
-        // Get video URL
+        // Get video info
         const response = await fetch(`/recording/video/${sessionId}`);
         
         if (!response.ok) {
@@ -699,31 +885,35 @@ async function viewAnalyzedVideo(sessionId) {
         modal.className = 'modal fade';
         modal.id = 'videoModal';
         modal.innerHTML = `
-            <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-dialog modal-xl modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">
-                            <i class="fas fa-video"></i> Analyzed Video - ${videoData.exercise_name.replace('_', ' ').toUpperCase()}
+                            <i class="fas fa-video"></i> Original Video - ${videoData.exercise_name.replace('_', ' ').toUpperCase()}
                         </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle"></i> 
-                            This is your original uploaded video. The analysis overlay is shown in the results above.
+                            This is your original uploaded video without analysis overlay.
                         </div>
-                        <video controls class="w-100" style="max-height: 500px;">
-                            <source src="${videoData.video_url}" type="video/mp4">
+                        <video controls class="w-100" style="max-height: 600px; background: #000;">
+                            <source src="/recording/video-file/${sessionId}" type="video/mp4">
                             Your browser does not support the video tag.
                         </video>
-                        <div class="mt-3">
-                            <p class="mb-1"><strong>Duration:</strong> ${formatTime(videoData.duration)}</p>
-                            <p class="mb-0"><strong>Exercise:</strong> ${videoData.exercise_name.replace('_', ' ')}</p>
+                        <div class="mt-3 row">
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Filename:</strong> ${videoData.filename}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Duration:</strong> ${formatTime(videoData.duration)}</p>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <a href="${videoData.video_url}" target="_blank" class="btn btn-primary">
-                            <i class="fas fa-external-link-alt"></i> Open in New Tab
+                        <a href="/recording/video-file/${sessionId}" download="${videoData.filename}" class="btn btn-success">
+                            <i class="fas fa-download"></i> Download Video
                         </a>
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     </div>
@@ -754,24 +944,10 @@ async function viewAnalyzedVideo(sessionId) {
         
         // Reset button
         const viewButton = document.getElementById('view-video');
-        viewButton.innerHTML = '<i class="fas fa-play"></i> View Analyzed Video';
+        viewButton.innerHTML = '<i class="fas fa-play"></i> View Original Video';
         viewButton.disabled = false;
     }
 }
 
-function resetToUpload() {
-    console.log('🔄 Resetting to upload state');
-    
-    document.getElementById('analysis-section').style.display = 'none';
-    document.getElementById('results-section').style.display = 'none';
-    document.getElementById('upload-section').style.display = 'block';
-    document.getElementById('upload-section').style.visibility = 'visible';
-    currentSessionId = null;
-    
-    if (analysisInterval) {
-        clearInterval(analysisInterval);
-        analysisInterval = null;
-    }
-}
 </script>
 {% endblock %}

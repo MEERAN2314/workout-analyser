@@ -1,6 +1,6 @@
 from celery import current_task
 from app.services.celery_app import celery_app
-from app.services.video_processor import video_processor
+from app.services.video_processor_fixed import video_processor_fixed as video_processor
 from app.core.database import get_database
 from bson import ObjectId
 import logging
@@ -37,9 +37,14 @@ def process_video_task(self, session_id: str, video_url: str, exercise_name: str
                 meta={'progress': 10, 'status': 'Downloading video for analysis...'}
             )
             
-            # Process the video
+            # Process the video (WITHOUT annotation for now to fix core issues)
             result = loop.run_until_complete(
-                video_processor.process_video_from_url(video_url, exercise_name, session_id)
+                video_processor.process_video_from_url(
+                    video_url, 
+                    exercise_name, 
+                    session_id,
+                    generate_annotated=False  # Disable annotation temporarily
+                )
             )
             
             logger.info(f"✅ Video processing completed successfully")

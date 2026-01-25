@@ -12,7 +12,7 @@ import mimetypes
 
 from app.core.database import get_database
 from app.services.google_drive_storage import google_drive_storage
-from app.services.video_processor import video_processor
+from app.services.video_processor_fixed import video_processor_fixed as video_processor
 from app.models.workout import WorkoutSession, WorkoutCreate
 from app.core.config import settings
 
@@ -47,6 +47,7 @@ class AnalysisResultsResponse(BaseModel):
     mistakes: List[dict]
     calories_burned: Optional[float]
     video_url: Optional[str]
+    annotated_video_url: Optional[str]  # NEW: URL to annotated video with overlay
     analysis_timeline: List[dict]
     report_available: bool = False
 
@@ -228,16 +229,28 @@ async def upload_video(
     """
     Smart video upload with Celery + Direct Processing fallback
     """
+    logger.info("=" * 80)
+    logger.info(f"🎬 UPLOAD ENDPOINT CALLED")
+    logger.info(f"   File: {file.filename}")
+    logger.info(f"   Exercise: {exercise_name}")
+    logger.info(f"   User: {user_id}")
+    logger.info("=" * 80)
+    
     try:
         # Validate file
+        logger.info("Step 1: Validating file...")
         validation_result = await _validate_video_file(file)
         if not validation_result["valid"]:
+            logger.error(f"Validation failed: {validation_result['error']}")
             raise HTTPException(status_code=400, detail=validation_result["error"])
+        logger.info(f"✅ File validated: {validation_result}")
         
         # Generate session ID
         session_id = str(uuid.uuid4())
+        logger.info(f"✅ Session ID generated: {session_id}")
         
         # Create database entry
+        logger.info("Step 2: Creating database entry...")
         db = get_database()
         if db is not None:
             from bson import ObjectId
@@ -262,107 +275,99 @@ async def upload_video(
             )
             
             await db.workouts.insert_one(workout_session.dict(by_alias=True))
-            logger.info(f"Recording session created in database: {session_id}")
+            logger.info(f"✅ Database entry created for session {session_id}")
         
         # Upload to Google Drive
-        logger.info(f"Starting video upload for session {session_id}: {file.filename}")
+        logger.info(f"Step 3: Uploading to Google Drive...")
         await file.seek(0)
         
         video_url = google_drive_storage.upload_video(file.file, file.filename, user_id)
         
         if not video_url:
+            logger.error("❌ Google Drive upload failed - no URL returned")
             raise HTTPException(status_code=500, detail="Failed to upload video to storage")
+        
+        logger.info(f"✅ Video uploaded to Google Drive: {video_url}")
         
         # Update database with video URL
         if db is not None:
             await db.workouts.update_one(
                 {"_id": ObjectId(session_id.replace('-', '')[:24])},
-                {"$set": {"video_url": video_url, "processing_started": True}}
+                {"$set": {"video_url": video_url, "processing_started": False}}  # Set to False initially
             )
         
-        # Try Celery first, fallback to direct processing
+        logger.info(f"📹 Video uploaded to Google Drive: {video_url}")
+        logger.info(f"🎯 Starting DIRECT processing (Celery disabled for debugging)")
+        
+        # FORCE DIRECT PROCESSING (bypass Celery for now)
         try:
-            from app.services.celery_tasks import process_video_task
-            from app.services.celery_app import celery_app
-            
-            # Check if Celery is available
-            inspect = celery_app.control.inspect()
-            active_workers = inspect.active()
-            
-            if active_workers and any(active_workers.values()):
-                # Celery workers are available, use background processing
-                task = process_video_task.delay(session_id, video_url, exercise_name, user_id)
-                
-                # Store task ID in database for tracking
-                if db is not None:
-                    await db.workouts.update_one(
-                        {"_id": ObjectId(session_id.replace('-', '')[:24])},
-                        {"$set": {"celery_task_id": task.id, "processing_method": "celery"}}
-                    )
-                
-                logger.info(f"✅ Celery processing started with task ID: {task.id}")
-                
-                return VideoUploadResponse(
-                    session_id=session_id,
-                    filename=file.filename,
-                    status="uploaded",
-                    message="Video uploaded successfully. Background analysis started.",
-                    file_size=validation_result.get("file_size"),
-                    duration=validation_result.get("duration"),
-                    processing_started=True
+            # Update database to indicate direct processing
+            if db is not None:
+                await db.workouts.update_one(
+                    {"_id": ObjectId(session_id.replace('-', '')[:24])},
+                    {"$set": {"processing_method": "direct", "processing_started": True}}
                 )
-            else:
-                raise Exception("No active Celery workers found")
-                
-        except Exception as celery_error:
-            logger.warning(f"⚠️ Celery not available ({celery_error}), falling back to direct processing")
             
-            # Fallback to direct processing
+            logger.info(f"🚀 Starting direct processing for {session_id}")
+            logger.info(f"   Video URL: {video_url}")
+            logger.info(f"   Exercise: {exercise_name}")
+            logger.info(f"   User ID: {user_id}")
+            
+            # Process the video directly
             try:
-                # Update database to indicate direct processing
-                if db is not None:
-                    await db.workouts.update_one(
-                        {"_id": ObjectId(session_id.replace('-', '')[:24])},
-                        {"$set": {"processing_method": "direct", "processing_started": True}}
-                    )
-                
-                logger.info(f"🚀 Starting direct processing fallback for {session_id}")
-                
-                # Process the video directly
-                result = await video_processor.process_video_from_url(video_url, exercise_name, session_id)
-                
-                # Save results to database
-                if db is not None:
-                    update_data = result.to_dict()
-                    update_data["processing_method"] = "direct"
-                    await db.workouts.update_one(
-                        {"_id": ObjectId(session_id.replace('-', '')[:24])},
-                        {"$set": update_data}
-                    )
-                
-                logger.info(f"✅ Direct processing fallback completed for {session_id}")
-                
-                return VideoUploadResponse(
-                    session_id=session_id,
-                    filename=file.filename,
-                    status="completed",
-                    message=f"Analysis completed! {result.total_reps} reps detected with {result.get_average_accuracy()*100:.1f}% accuracy",
-                    file_size=validation_result.get("file_size"),
-                    duration=result.duration,
-                    processing_started=True
+                logger.info("📞 Calling video_processor.process_video_from_url...")
+                result = await video_processor.process_video_from_url(
+                    video_url, 
+                    exercise_name, 
+                    session_id,
+                    generate_annotated=False
                 )
-                
-            except Exception as direct_error:
-                logger.error(f"❌ Both Celery and direct processing failed: {direct_error}")
-                
-                # Update database with error
-                if db is not None:
-                    await db.workouts.update_one(
-                        {"_id": ObjectId(session_id.replace('-', '')[:24])},
-                        {"$set": {"status": "failed", "error_message": str(direct_error)}}
-                    )
-                
-                raise HTTPException(status_code=500, detail=f"Processing failed: {str(direct_error)}")
+                logger.info(f"✅ Video processing returned: {result.total_reps} reps, {result.get_average_accuracy():.2f} accuracy")
+            except Exception as proc_error:
+                logger.error(f"❌ Video processing failed: {proc_error}")
+                import traceback
+                logger.error(traceback.format_exc())
+                raise
+            
+            # Save results to database
+            if db is not None:
+                update_data = result.to_dict()
+                update_data["processing_method"] = "direct"
+                logger.info(f"💾 Saving results to database...")
+                await db.workouts.update_one(
+                    {"_id": ObjectId(session_id.replace('-', '')[:24])},
+                    {"$set": update_data}
+                )
+                logger.info(f"✅ Results saved to database")
+            
+            logger.info(f"🎉 Direct processing completed for {session_id}")
+            
+            return VideoUploadResponse(
+                session_id=session_id,
+                filename=file.filename,
+                status="completed",
+                message=f"Analysis completed! {result.total_reps} reps detected with {result.get_average_accuracy()*100:.1f}% accuracy",
+                file_size=validation_result.get("file_size"),
+                duration=result.duration,
+                processing_started=True
+            )
+            
+        except Exception as direct_error:
+            logger.error(f"❌ Direct processing failed: {direct_error}")
+            import traceback
+            logger.error(f"❌ Full traceback:\n{traceback.format_exc()}")
+            
+            # Update database with error
+            if db is not None:
+                await db.workouts.update_one(
+                    {"_id": ObjectId(session_id.replace('-', '')[:24])},
+                    {"$set": {"status": "failed", "error_message": str(direct_error), "analysis_completed": False}}
+                )
+            
+            raise HTTPException(status_code=500, detail=f"Processing failed: {str(direct_error)}")
+        
+        # OLD CELERY CODE REMOVED FOR DEBUGGING
+        # Will re-enable after direct processing works
         
     except HTTPException:
         raise
@@ -555,6 +560,7 @@ async def get_analysis_results(session_id: str):
             mistakes=session_doc.get("mistakes", []),
             calories_burned=session_doc.get("calories_burned"),
             video_url=session_doc.get("video_url"),
+            annotated_video_url=session_doc.get("annotated_video_url"),  # NEW: Include annotated video
             analysis_timeline=session_doc.get("analysis_timeline", []),
             report_available=True
         )

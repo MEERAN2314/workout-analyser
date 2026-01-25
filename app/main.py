@@ -44,7 +44,11 @@ templates = Jinja2Templates(directory="app/templates")
 app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(home.router, prefix="", tags=["home"])
 app.include_router(live_analysis.router, prefix="/live", tags=["live-analysis"])
-app.include_router(recording_analysis.router, prefix="/recording", tags=["recording-analysis"])
+
+# Use NEW recording analysis router
+from app.api.routes import recording_analysis_new
+app.include_router(recording_analysis_new.router, prefix="/recording", tags=["recording-analysis"])
+
 app.include_router(exercises.router, prefix="/exercises", tags=["exercises"])
 
 # Health check

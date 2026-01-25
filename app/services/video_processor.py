@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import json
 
 from app.services.mediapipe_service import mediapipe_service, ExerciseResult
+from app.services.video_annotator import video_annotator
 from app.core.config import settings
 from app.core.database import get_database
 
@@ -93,14 +94,15 @@ class VideoAnalysisResult:
             "fps": self.fps,
             "calories_burned": self.calculate_calories(),
             "analysis_completed": True,
-            "completed_at": datetime.utcnow()
+            "completed_at": datetime.utcnow(),
+            "annotated_video_url": getattr(self, 'annotated_video_url', None)
         }
 
 class VideoProcessor:
     def __init__(self):
         self.temp_dir = tempfile.gettempdir()
         
-    async def process_video_from_url(self, video_url: str, exercise_name: str, session_id: str) -> VideoAnalysisResult:
+    async def process_video_from_url(self, video_url: str, exercise_name: str, session_id: str, generate_annotated: bool = True) -> VideoAnalysisResult:
         """
         Process video from URL with comprehensive analysis
         
@@ -108,6 +110,7 @@ class VideoProcessor:
             video_url: URL to the video file
             exercise_name: Type of exercise to analyze
             session_id: Session identifier for tracking
+            generate_annotated: Whether to generate annotated video with overlay
             
         Returns:
             VideoAnalysisResult with comprehensive analysis data
@@ -123,6 +126,19 @@ class VideoProcessor:
             
             # Process video file
             result = await self._process_video_file(temp_video_path, exercise_name, session_id)
+            
+            # Generate annotated video if requested
+            if generate_annotated:
+                logger.info(f"🎨 Generating annotated video for session {session_id}")
+                annotated_path = await self._generate_annotated_video(
+                    temp_video_path, exercise_name, session_id, result
+                )
+                
+                if annotated_path:
+                    # Upload annotated video to Google Drive
+                    annotated_url = await self._upload_annotated_video(annotated_path, session_id)
+                    result.annotated_video_url = annotated_url
+                    logger.info(f"✅ Annotated video uploaded: {annotated_url}")
             
             # Clean up temporary file
             try:
@@ -288,6 +304,64 @@ class VideoProcessor:
                 )
         except Exception as e:
             logger.warning(f"Failed to update progress: {e}")
+    
+    async def _generate_annotated_video(
+        self, 
+        input_video_path: str, 
+        exercise_name: str, 
+        session_id: str,
+        analysis_result: VideoAnalysisResult
+    ) -> Optional[str]:
+        """Generate annotated video with analysis overlay"""
+        try:
+            # Create output path
+            output_path = os.path.join(
+                self.temp_dir, 
+                f"annotated_{session_id}.mp4"
+            )
+            
+            # Progress callback
+            async def progress_callback(progress, message):
+                logger.info(f"Annotation progress: {progress}% - {message}")
+                await self._update_processing_progress(session_id, 80 + int(progress * 0.15))
+            
+            # Create annotated video
+            stats = await video_annotator.create_annotated_video(
+                input_video_path,
+                output_path,
+                exercise_name,
+                session_id,
+                progress_callback
+            )
+            
+            logger.info(f"Annotated video created: {stats}")
+            return output_path
+            
+        except Exception as e:
+            logger.error(f"Error generating annotated video: {e}")
+            return None
+    
+    async def _upload_annotated_video(self, video_path: str, session_id: str) -> Optional[str]:
+        """Upload annotated video to Google Drive"""
+        try:
+            from app.services.google_drive_storage import google_drive_storage
+            
+            # Upload to Google Drive
+            with open(video_path, 'rb') as f:
+                filename = f"annotated_{session_id}.mp4"
+                video_url = google_drive_storage.upload_video(f, filename, f"session_{session_id}")
+            
+            # Clean up local file
+            try:
+                os.remove(video_path)
+            except:
+                pass
+            
+            return video_url
+            
+        except Exception as e:
+            logger.error(f"Error uploading annotated video: {e}")
+            return None
     
     async def generate_analysis_summary(self, result: VideoAnalysisResult) -> Dict[str, Any]:
         """Generate comprehensive analysis summary"""

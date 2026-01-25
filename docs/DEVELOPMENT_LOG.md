@@ -450,11 +450,23 @@ GET /recording/report/{session_id}  # PDF report generation
   - Professional styling with charts and tables
   - Downloadable PDF with proper formatting
   
+- **Annotated Video Export**: ✅ **MAJOR NEW FEATURE** 🎬
+  - **Skeleton overlay** rendered on person during exercise
+  - **Rep counters** (Correct/Incorrect) displayed in top right corner
+  - **Real-time feedback** messages shown in top left corner
+  - **Angle indicators** at key joints (elbows, knees)
+  - **Progress bar** at bottom of video
+  - **Professional rendering** with color-coded elements
+  - **Google Drive integration** for storage and sharing
+  - **Download functionality** for offline viewing
+  - **Modal video player** with full controls
+  
 - **Video Viewing**: ✅ Full implementation with modal player
-  - Access to original uploaded video
+  - Access to both original and annotated videos
   - Video playback with controls
   - Exercise information display
   - Open in new tab option
+  - Download option for both versions
   - Responsive video player
 
 ### Phase 3 Architecture Implementation
