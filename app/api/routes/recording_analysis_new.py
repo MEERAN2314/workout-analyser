@@ -132,6 +132,45 @@ async def upload_and_process_video(
             await db.workouts.insert_one(workout_session)
             print("✅ Results saved to database")
         
+        # Step 4: Generate annotated video
+        print("\n🎨 Step 4: Generating annotated video...")
+        annotated_path = None
+        try:
+            from app.services.video_annotator_simple import video_annotator_simple
+            
+            annotated_path = f"/tmp/videos/annotated_{session_id}.mp4"
+            
+            print(f"   Creating annotated video at: {annotated_path}")
+            
+            annotation_result = await video_annotator_simple.create_annotated_video(
+                permanent_path,
+                annotated_path,
+                exercise_name,
+                session_id + "_annotate"  # Use different session ID for annotation
+            )
+            
+            # Verify file was created
+            if os.path.exists(annotated_path) and os.path.getsize(annotated_path) > 0:
+                print(f"✅ Annotated video generated: {os.path.getsize(annotated_path) / (1024*1024):.2f} MB")
+                
+                # Update database with annotated video path
+                if db is not None:
+                    await db.workouts.update_one(
+                        {"_id": ObjectId(session_id.replace('-', '')[:24])},
+                        {"$set": {"annotated_video_path": annotated_path}}
+                    )
+                    print("✅ Annotated video path saved to database")
+            else:
+                print("⚠️  Annotated video file not created or empty")
+                annotated_path = None
+            
+        except Exception as anno_error:
+            print(f"⚠️  Annotated video generation failed: {anno_error}")
+            import traceback
+            print(traceback.format_exc())
+            annotated_path = None
+            # Don't fail the whole upload if annotation fails
+        
         # Cleanup
         try:
             os.remove(temp_path)
@@ -422,6 +461,60 @@ async def stream_video(session_id: str):
     except HTTPException:
         raise
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/annotated-video/{session_id}")
+async def stream_annotated_video(session_id: str):
+    """Stream the annotated video file with skeleton overlay"""
+    try:
+        print(f"\n🎥 Streaming annotated video for session: {session_id}")
+        
+        db = get_database()
+        if db is None:
+            print("❌ Database not available")
+            raise HTTPException(status_code=503, detail="Database not available")
+        
+        session_doc = await db.workouts.find_one({"_id": ObjectId(session_id.replace('-', '')[:24])})
+        
+        if not session_doc:
+            print(f"❌ Session not found: {session_id}")
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        annotated_path = session_doc.get("annotated_video_path")
+        
+        print(f"   Annotated path from DB: {annotated_path}")
+        
+        if not annotated_path:
+            print("❌ No annotated video path in database")
+            raise HTTPException(status_code=404, detail="Annotated video not generated yet. Please wait for processing to complete.")
+        
+        if not os.path.exists(annotated_path):
+            print(f"❌ Annotated video file not found at: {annotated_path}")
+            raise HTTPException(status_code=404, detail=f"Annotated video file not found. It may have been deleted.")
+        
+        file_size = os.path.getsize(annotated_path)
+        print(f"✅ Streaming annotated video: {file_size / (1024*1024):.2f} MB")
+        
+        # Stream annotated video file
+        def iterfile():
+            with open(annotated_path, mode="rb") as file_like:
+                yield from file_like
+        
+        return StreamingResponse(
+            iterfile(),
+            media_type="video/mp4",
+            headers={
+                "Content-Disposition": f"inline; filename=annotated_{session_doc.get('video_filename', 'video.mp4')}",
+                "Accept-Ranges": "bytes"
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error streaming annotated video: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/status/{session_id}")

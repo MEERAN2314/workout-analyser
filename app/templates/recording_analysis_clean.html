@@ -292,12 +292,15 @@
                         <button class="btn btn-primary btn-block mb-2" id="download-report">
                             <i class="fas fa-file-pdf"></i> Download PDF Report
                         </button>
-                        <button class="btn btn-success btn-block mb-2" id="view-annotated-video" style="display: none;">
+                        <button class="btn btn-success btn-block mb-2" id="view-annotated-video">
                             <i class="fas fa-play-circle"></i> View Annotated Video
                         </button>
                         <button class="btn btn-outline-secondary btn-block" id="view-video">
                             <i class="fas fa-play"></i> View Original Video
                         </button>
+                        <small class="text-muted d-block mt-2">
+                            <i class="fas fa-info-circle"></i> Annotated video includes skeleton overlay, rep counters, and real-time feedback
+                        </small>
                         <small class="text-muted d-block mt-2">
                             <i class="fas fa-info-circle"></i> Annotated video includes skeleton overlay, rep counters, and real-time feedback
                         </small>
@@ -395,6 +398,18 @@ document.addEventListener('DOMContentLoaded', function() {
         viewVideoButton.addEventListener('click', async () => {
             if (currentSessionId) {
                 await viewOriginalVideo(currentSessionId);
+            } else {
+                alert('No session available. Please upload and analyze a video first.');
+            }
+        });
+    }
+    
+    // View annotated video handler
+    const viewAnnotatedButton = document.getElementById('view-annotated-video');
+    if (viewAnnotatedButton) {
+        viewAnnotatedButton.addEventListener('click', async () => {
+            if (currentSessionId) {
+                await viewAnnotatedVideo(currentSessionId);
             } else {
                 alert('No session available. Please upload and analyze a video first.');
             }
@@ -675,14 +690,12 @@ async function downloadReport(sessionId) {
     }
 }
 
-async function viewAnalyzedVideo(sessionId, viewAnnotated = false) {
+async function viewAnnotatedVideo(sessionId) {
     try {
-        const videoType = viewAnnotated ? 'annotated' : 'original';
-        console.log(`🎥 Loading ${videoType} video for session:`, sessionId);
+        console.log('🎥 Loading annotated video for session:', sessionId);
         
         // Show loading state
-        const buttonId = viewAnnotated ? 'view-annotated-video' : 'view-video';
-        const viewButton = document.getElementById(buttonId);
+        const viewButton = document.getElementById('view-annotated-video');
         const originalText = viewButton.innerHTML;
         viewButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading Video...';
         viewButton.disabled = true;
@@ -696,31 +709,9 @@ async function viewAnalyzedVideo(sessionId, viewAnnotated = false) {
         
         const videoData = await response.json();
         
-        // Determine which video URL to use
-        let videoUrl, videoTitle, videoDescription;
-        
-        if (viewAnnotated && videoData.annotated_video_url) {
-            videoUrl = videoData.annotated_video_url;
-            videoTitle = `Annotated Analysis - ${videoData.exercise_name.replace('_', ' ').toUpperCase()}`;
-            videoDescription = `
-                <div class="alert alert-success">
-                    <i class="fas fa-check-circle"></i> 
-                    <strong>Annotated Video:</strong> This video includes skeleton overlay, rep counters (correct/incorrect), 
-                    and real-time form feedback displayed during your workout.
-                </div>
-            `;
-        } else if (videoData.video_url) {
-            videoUrl = videoData.video_url;
-            videoTitle = `Original Video - ${videoData.exercise_name.replace('_', ' ').toUpperCase()}`;
-            videoDescription = `
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle"></i> 
-                    This is your original uploaded video without analysis overlay.
-                </div>
-            `;
-        } else {
-            throw new Error('No video available');
-        }
+        // Use the annotated video endpoint
+        const videoUrl = `/recording/annotated-video/${sessionId}`;
+        const videoTitle = `Annotated Analysis - ${videoData.exercise_name.replace('_', ' ').toUpperCase()}`;
         
         // Create modal to display video
         const modal = document.createElement('div');
@@ -736,8 +727,12 @@ async function viewAnalyzedVideo(sessionId, viewAnnotated = false) {
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        ${videoDescription}
-                        <video controls class="w-100" style="max-height: 600px; background: #000;">
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i> 
+                            <strong>Annotated Video:</strong> This video includes skeleton overlay, rep counters (correct/incorrect), 
+                            and real-time form feedback displayed during your workout.
+                        </div>
+                        <video controls autoplay class="w-100" style="max-height: 600px; background: #000;">
                             <source src="${videoUrl}" type="video/mp4">
                             Your browser does not support the video tag.
                         </video>
@@ -754,8 +749,8 @@ async function viewAnalyzedVideo(sessionId, viewAnnotated = false) {
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <a href="${videoUrl}" download class="btn btn-success">
-                            <i class="fas fa-download"></i> Download Video
+                        <a href="${videoUrl}" download="annotated_workout.mp4" class="btn btn-success">
+                            <i class="fas fa-download"></i> Download Annotated Video
                         </a>
                         <a href="${videoUrl}" target="_blank" class="btn btn-primary">
                             <i class="fas fa-external-link-alt"></i> Open in New Tab
@@ -777,7 +772,7 @@ async function viewAnalyzedVideo(sessionId, viewAnnotated = false) {
             document.body.removeChild(modal);
         });
         
-        console.log(`✅ ${videoType} video loaded successfully`);
+        console.log('✅ Annotated video loaded successfully');
         
         // Reset button
         viewButton.innerHTML = originalText;
@@ -785,14 +780,11 @@ async function viewAnalyzedVideo(sessionId, viewAnnotated = false) {
         
     } catch (error) {
         console.error('❌ Video loading error:', error);
-        alert('Failed to load video: ' + error.message);
+        alert('Failed to load annotated video: ' + error.message + '\n\nThe annotated video may not have been generated yet. Please try the original video instead.');
         
         // Reset button
-        const buttonId = viewAnnotated ? 'view-annotated-video' : 'view-video';
-        const viewButton = document.getElementById(buttonId);
-        const icon = viewAnnotated ? 'play-circle' : 'play';
-        const text = viewAnnotated ? 'View Annotated Video' : 'View Original Video';
-        viewButton.innerHTML = `<i class="fas fa-${icon}"></i> ${text}`;
+        const viewButton = document.getElementById('view-annotated-video');
+        viewButton.innerHTML = '<i class="fas fa-play-circle"></i> View Annotated Video';
         viewButton.disabled = false;
     }
 }
