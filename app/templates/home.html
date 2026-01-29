@@ -1,148 +1,188 @@
 {% extends "base.html" %}
 
 {% block content %}
-<!-- Welcome Section -->
-<div class="row mb-4">
+<!-- Hero Section -->
+<div class="row mb-5 fade-in">
     <div class="col-12 text-center">
-        <h1 class="display-4">
-            <i class="fas fa-dumbbell me-3"></i>Welcome to Workout Analyzer
+        <h1 class="display-3 fw-bold text-gradient mb-3">
+            <i class="fa-solid fa-dumbbell"></i>
+            Workout Analyzer
         </h1>
-        <p class="lead">AI-powered workout analysis with real-time feedback</p>
+        <p class="lead text-muted mb-4">
+            AI-powered workout analysis with real-time feedback and professional coaching
+        </p>
         
         <!-- Authenticated User Welcome -->
         <div class="auth-required" style="display: none;">
-            <div class="alert alert-info mt-3">
-                <i class="fas fa-user-circle me-2"></i>
+            <div class="alert alert-info d-inline-block">
+                <i class="fa-solid fa-circle-user me-2"></i>
                 Welcome back, <strong class="user-info">User</strong>! 
-                <a href="/dashboard" class="alert-link">View your dashboard</a>
+                <a href="/dashboard" class="alert-link ms-2">
+                    <i class="fa-solid fa-arrow-right"></i> View Dashboard
+                </a>
             </div>
         </div>
         
         <!-- Guest User CTA -->
         <div class="guest-only mt-3">
-            <a href="/auth/register" class="btn btn-primary btn-lg me-2">
-                <i class="fas fa-user-plus me-2"></i>Get Started
+            <a href="/auth/register" class="btn btn-primary btn-lg me-2 hover-lift">
+                <i class="fa-solid fa-rocket"></i> Get Started
             </a>
-            <a href="/auth/login" class="btn btn-outline-primary btn-lg">
-                <i class="fas fa-sign-in-alt me-2"></i>Login
+            <a href="/auth/login" class="btn btn-outline-primary btn-lg hover-lift">
+                <i class="fa-solid fa-right-to-bracket"></i> Login
             </a>
         </div>
     </div>
 </div>
 
-<div class="row justify-content-center">
-    <div class="col-md-5 mb-4">
-        <div class="card h-100 shadow">
-            <div class="card-body text-center">
-                <div class="mb-3">
-                    <i class="fas fa-video fa-3x text-primary"></i>
+<!-- Feature Cards -->
+<div class="row g-4 mb-5">
+    <div class="col-md-6">
+        <div class="card h-100 hover-lift">
+            <div class="card-body text-center p-4">
+                <div class="stat-card-icon mx-auto mb-3">
+                    <i class="fa-solid fa-video"></i>
                 </div>
                 <h3 class="card-title">Live Analysis</h3>
-                <p class="card-text">
+                <p class="card-text text-muted">
                     Get real-time feedback on your workout form with live camera analysis. 
                     Perfect for guided workouts and immediate corrections.
                 </p>
-                <ul class="list-unstyled text-start">
-                    <li><i class="fas fa-check text-success me-2"></i>Real-time rep counting</li>
-                    <li><i class="fas fa-check text-success me-2"></i>Live form feedback</li>
-                    <li><i class="fas fa-check text-success me-2"></i>Audio coaching</li>
-                    <li><i class="fas fa-check text-success me-2"></i>Instant results</li>
+                <ul class="list-unstyled text-start mb-4">
+                    <li class="mb-2">
+                        <i class="fa-solid fa-check-circle text-success me-2"></i>
+                        Real-time rep counting
+                    </li>
+                    <li class="mb-2">
+                        <i class="fa-solid fa-check-circle text-success me-2"></i>
+                        Live form feedback
+                    </li>
+                    <li class="mb-2">
+                        <i class="fa-solid fa-check-circle text-success me-2"></i>
+                        Audio coaching
+                    </li>
+                    <li class="mb-2">
+                        <i class="fa-solid fa-check-circle text-success me-2"></i>
+                        Instant results
+                    </li>
                 </ul>
-                <a href="/live" class="btn btn-primary btn-lg">
-                    <i class="fas fa-play me-2"></i>Start Live Analysis
+                <a href="/live" class="btn btn-primary w-100">
+                    <i class="fa-solid fa-play me-2"></i>Start Live Analysis
                 </a>
             </div>
         </div>
     </div>
 
-    <div class="col-md-5 mb-4">
-        <div class="card h-100 shadow">
-            <div class="card-body text-center">
-                <div class="mb-3">
-                    <i class="fas fa-upload fa-3x text-success"></i>
+    <div class="col-md-6">
+        <div class="card h-100 hover-lift">
+            <div class="card-body text-center p-4">
+                <div class="stat-card-icon mx-auto mb-3" style="background: linear-gradient(135deg, #10b981 0%, #34d399 100%);">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
                 </div>
                 <h3 class="card-title">Recording Analysis</h3>
-                <p class="card-text">
+                <p class="card-text text-muted">
                     Upload your workout videos for detailed analysis and comprehensive reports. 
                     Get in-depth insights and improvement suggestions.
                 </p>
-                <ul class="list-unstyled text-start">
-                    <li><i class="fas fa-check text-success me-2"></i>Detailed form analysis</li>
-                    <li><i class="fas fa-check text-success me-2"></i>Mistake identification</li>
-                    <li><i class="fas fa-check text-success me-2"></i>PDF reports</li>
-                    <li><i class="fas fa-check text-success me-2"></i>AI consultation</li>
+                <ul class="list-unstyled text-start mb-4">
+                    <li class="mb-2">
+                        <i class="fa-solid fa-check-circle text-success me-2"></i>
+                        Detailed form analysis
+                    </li>
+                    <li class="mb-2">
+                        <i class="fa-solid fa-check-circle text-success me-2"></i>
+                        Mistake identification
+                    </li>
+                    <li class="mb-2">
+                        <i class="fa-solid fa-check-circle text-success me-2"></i>
+                        PDF reports
+                    </li>
+                    <li class="mb-2">
+                        <i class="fa-solid fa-check-circle text-success me-2"></i>
+                        AI consultation
+                    </li>
                 </ul>
-                <a href="/recording" class="btn btn-success btn-lg">
-                    <i class="fas fa-cloud-upload-alt me-2"></i>Upload Video
+                <a href="/recording" class="btn btn-success w-100">
+                    <i class="fa-solid fa-upload me-2"></i>Upload Video
                 </a>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Phase 4 Features -->
-<div class="row mt-4 auth-required" style="display: none;">
-    <div class="col-md-6 mb-4">
-        <div class="card border-primary">
-            <div class="card-body">
+<!-- Phase 4 Features (Authenticated Users) -->
+<div class="row g-4 mb-5 auth-required" style="display: none;">
+    <div class="col-md-6">
+        <div class="card border-primary hover-lift">
+            <div class="card-body p-4">
                 <h5 class="card-title">
-                    <i class="fas fa-chart-line text-primary me-2"></i>Track Your Progress
+                    <i class="fa-solid fa-chart-line text-primary me-2"></i>
+                    Track Your Progress
                 </h5>
-                <p class="card-text">
-                    View your workout history, track improvements, and monitor your fitness journey.
+                <p class="card-text text-muted">
+                    View your workout history, track improvements, and monitor your fitness journey with detailed analytics.
                 </p>
                 <a href="/dashboard" class="btn btn-outline-primary">
-                    <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
+                    <i class="fa-solid fa-gauge-high me-2"></i>Go to Dashboard
                 </a>
             </div>
         </div>
     </div>
     
-    <div class="col-md-6 mb-4">
-        <div class="card border-info">
-            <div class="card-body">
+    <div class="col-md-6">
+        <div class="card border-info hover-lift">
+            <div class="card-body p-4">
                 <h5 class="card-title">
-                    <i class="fas fa-robot text-info me-2"></i>AI Workout Coach
+                    <i class="fa-solid fa-robot text-info me-2"></i>
+                    AI Workout Coach
                 </h5>
-                <p class="card-text">
-                    Chat with our AI coach for personalized workout advice and form tips.
+                <p class="card-text text-muted">
+                    Chat with our AI coach powered by Gemini 2.5 Flash for personalized workout advice and form tips.
                 </p>
                 <a href="/chat" class="btn btn-outline-info">
-                    <i class="fas fa-comments me-2"></i>Start Chat
+                    <i class="fa-solid fa-comments me-2"></i>Start Chat
                 </a>
             </div>
         </div>
     </div>
 </div>
 
+<!-- How It Works Section -->
 <div class="row mt-5">
     <div class="col-12">
-        <div class="card bg-light">
-            <div class="card-body">
-                <h4 class="card-title text-center mb-4">
-                    <i class="fas fa-info-circle me-2"></i>How It Works
+        <div class="card glass-effect">
+            <div class="card-body p-5">
+                <h4 class="card-title text-center mb-5">
+                    <i class="fa-solid fa-lightbulb me-2"></i>
+                    How It Works
                 </h4>
-                <div class="row">
+                <div class="row g-4">
                     <div class="col-md-4 text-center">
-                        <div class="mb-3">
-                            <i class="fas fa-dumbbell fa-3x text-primary"></i>
+                        <div class="stat-card-icon mx-auto mb-3">
+                            <i class="fa-solid fa-list-check"></i>
                         </div>
                         <h5>1. Choose Exercise</h5>
-                        <p>Select from our library of supported exercises or let our AI detect it automatically.</p>
+                        <p class="text-muted">
+                            Select from our library of supported exercises or let our AI detect it automatically.
+                        </p>
                     </div>
                     <div class="col-md-4 text-center">
-                        <div class="mb-3">
-                            <i class="fas fa-eye fa-3x text-primary"></i>
+                        <div class="stat-card-icon mx-auto mb-3" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);">
+                            <i class="fa-solid fa-brain"></i>
                         </div>
                         <h5>2. AI Analysis</h5>
-                        <p>Our MediaPipe-powered AI analyzes your form, counts reps, and identifies areas for improvement.</p>
+                        <p class="text-muted">
+                            Our MediaPipe-powered AI analyzes your form, counts reps, and identifies areas for improvement.
+                        </p>
                     </div>
                     <div class="col-md-4 text-center">
-                        <div class="mb-3">
-                            <i class="fas fa-chart-line fa-3x text-primary"></i>
+                        <div class="stat-card-icon mx-auto mb-3" style="background: linear-gradient(135deg, #10b981 0%, #34d399 100%);">
+                            <i class="fa-solid fa-trophy"></i>
                         </div>
                         <h5>3. Get Results</h5>
-                        <p>Receive detailed feedback, performance metrics, and personalized recommendations.</p>
+                        <p class="text-muted">
+                            Receive detailed feedback, performance metrics, and personalized recommendations.
+                        </p>
                     </div>
                 </div>
             </div>

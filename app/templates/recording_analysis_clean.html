@@ -1,309 +1,430 @@
 {% extends "base.html" %}
 
 {% block head %}
-<!-- Cache busting for development -->
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-
 <style>
+/* Modern Upload Area */
 .upload-area {
-    border: 2px dashed #007bff;
-    border-radius: 10px;
-    padding: 40px;
+    border: 3px dashed var(--primary-blue);
+    border-radius: var(--radius-xl);
+    padding: 3rem;
     text-align: center;
-    background-color: #f8f9fa;
-    transition: all 0.3s ease;
+    background: linear-gradient(135deg, var(--gray-50) 0%, white 100%);
+    transition: all var(--transition-slow);
     cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.upload-area::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.1), transparent);
+    transition: left 0.5s;
+}
+
+.upload-area:hover::before {
+    left: 100%;
 }
 
 .upload-area:hover {
-    border-color: #0056b3;
-    background-color: #e3f2fd;
+    border-color: var(--primary-blue-dark);
+    background: linear-gradient(135deg, var(--info-light) 0%, white 100%);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-xl);
 }
 
 .upload-area.dragover {
-    border-color: #28a745;
-    background-color: #d4edda;
+    border-color: var(--success);
+    background: var(--success-light);
+    transform: scale(1.02);
 }
 
 .upload-icon {
-    font-size: 3rem;
-    color: #007bff;
-    margin-bottom: 1rem;
+    font-size: 4rem;
+    color: var(--primary-blue);
+    margin-bottom: 1.5rem;
+    animation: float 3s ease-in-out infinite;
 }
 
-/* FORCE HIDE SECTIONS - CRITICAL FOR INITIAL STATE */
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+/* Progress & Status */
 .progress-container,
 .analysis-status,
-.results-container,
-#progress-container,
-#analysis-section,
-#results-section {
-    display: none !important;
+.results-container {
+    display: none;
 }
 
-.timeline-item {
-    border-left: 3px solid #007bff;
-    padding-left: 15px;
-    margin-bottom: 15px;
+/* Stats Cards */
+.stats-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: var(--shadow);
+    transition: all var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+
+.stats-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-blue) 0%, var(--accent-cyan) 100%);
+}
+
+.stats-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-2xl);
+}
+
+.stats-card h3 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(135deg, var(--primary-blue) 0%, var(--accent-cyan) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Feedback & Mistakes */
+.feedback-item {
+    background: var(--info-light);
+    padding: 1rem;
+    border-radius: var(--radius);
+    margin-bottom: 0.75rem;
+    border-left: 4px solid var(--info);
+    transition: all var(--transition);
+}
+
+.feedback-item:hover {
+    transform: translateX(4px);
+    box-shadow: var(--shadow-sm);
 }
 
 .mistake-item {
-    border-left: 3px solid #dc3545;
-    padding-left: 15px;
-    margin-bottom: 10px;
-    background-color: #f8d7da;
-    padding: 10px;
-    border-radius: 5px;
+    background: var(--danger-light);
+    padding: 1rem;
+    border-radius: var(--radius);
+    margin-bottom: 0.75rem;
+    border-left: 4px solid var(--danger);
+    transition: all var(--transition);
 }
 
-.feedback-item {
-    background-color: #d1ecf1;
-    padding: 8px 12px;
-    border-radius: 5px;
-    margin-bottom: 5px;
-    border-left: 3px solid #17a2b8;
+.mistake-item:hover {
+    transform: translateX(4px);
+    box-shadow: var(--shadow-sm);
 }
 
-.stats-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 10px;
-    padding: 20px;
-    margin-bottom: 20px;
+.timeline-item {
+    border-left: 3px solid var(--primary-blue);
+    padding-left: 1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    position: relative;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -7px;
+    top: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--primary-blue);
+    border: 2px solid white;
+    box-shadow: var(--shadow);
 }
 
 .accuracy-meter {
     width: 100%;
-    height: 20px;
-    background-color: #e9ecef;
-    border-radius: 10px;
+    height: 24px;
+    background: var(--gray-200);
+    border-radius: var(--radius-full);
     overflow: hidden;
-    margin-top: 10px;
+    margin-top: 1rem;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .accuracy-fill {
     height: 100%;
-    background: linear-gradient(90deg, #dc3545 0%, #ffc107 50%, #28a745 100%);
-    transition: width 0.5s ease;
+    background: linear-gradient(90deg, var(--danger) 0%, var(--warning) 50%, var(--success) 100%);
+    transition: width 0.6s ease;
+    position: relative;
 }
 
-/* Cache buster indicator */
-.cache-buster {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    background: #28a745;
-    color: white;
-    padding: 5px 10px;
-    border-radius: 3px;
-    font-size: 12px;
-    z-index: 9999;
+.accuracy-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: shimmer 2s infinite;
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Cache Buster Indicator -->
-<div class="cache-buster" id="cache-indicator">
-    ✅ Fresh Load - v3.3 (Hybrid Processing)
-</div>
-
-<div class="row">
-    <div class="col-12">
-        <h2><i class="fas fa-video"></i> Recording Analysis</h2>
-        <p class="text-muted">Upload your workout video for comprehensive AI-powered analysis</p>
-        
-        <!-- Processing Method Info -->
-        <div class="alert alert-info">
-            <i class="fas fa-info-circle"></i>
-            <strong>Smart Processing:</strong> Automatically uses background processing when available, 
-            or direct processing for immediate results.
-            <a href="/recording/direct" class="btn btn-sm btn-outline-primary ms-2">
-                <i class="fas fa-bolt"></i> Force Direct Processing
-            </a>
+<div class="container-fluid py-4 fade-in">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-2">
+                <i class="fas fa-video text-gradient me-2"></i>Recording Analysis
+            </h2>
+            <p class="text-muted">Upload your workout video for comprehensive AI-powered analysis</p>
+            
+            <div class="alert alert-info border-0 shadow-sm">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Smart Processing:</strong> Automatically uses background processing when available, 
+                or direct processing for immediate results.
+                <a href="/recording/direct" class="btn btn-sm btn-outline-primary ms-2 hover-lift">
+                    <i class="fas fa-bolt me-1"></i>Force Direct Processing
+                </a>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Upload Section - Should be visible by default -->
-<div class="row" id="upload-section" style="display: block;">
-    <div class="col-lg-8 mx-auto">
-        <div class="card shadow">
-            <div class="card-body">
-                <h4 class="card-title mb-4">Upload Workout Video</h4>
-                
-                <!-- Exercise Selection -->
-                <div class="mb-4">
-                    <label for="exercise-select" class="form-label">Select Exercise Type</label>
-                    <select class="form-select" id="exercise-select">
-                        <option value="auto_detect">Auto-detect from video</option>
-                        <option value="push_ups">Push-ups</option>
-                        <option value="squats">Squats</option>
-                        <option value="bicep_curls">Bicep Curls</option>
-                        <option value="lunges">Lunges</option>
-                        <option value="planks">Planks</option>
-                    </select>
+    <!-- Upload Section -->
+    <div class="row" id="upload-section">
+        <div class="col-lg-8 mx-auto">
+            <div class="card shadow-lg border-0">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cloud-upload-alt me-2"></i>Upload Workout Video
+                    </h5>
                 </div>
-                
-                <!-- Upload Area -->
-                <div class="upload-area" id="upload-area">
-                    <div class="upload-icon">
-                        <i class="fas fa-cloud-upload-alt"></i>
+                <div class="card-body p-4">
+                    <!-- Exercise Selection -->
+                    <div class="mb-4">
+                        <label for="exercise-select" class="form-label fw-bold">
+                            <i class="fas fa-dumbbell me-2"></i>Select Exercise Type
+                        </label>
+                        <select class="form-select form-select-lg" id="exercise-select">
+                            <option value="auto_detect">🤖 Auto-detect from video</option>
+                            <option value="push_ups">💪 Push-ups</option>
+                            <option value="squats">🦵 Squats</option>
+                            <option value="bicep_curls">💪 Bicep Curls</option>
+                            <option value="lunges">🏃 Lunges</option>
+                            <option value="planks">🧘 Planks</option>
+                        </select>
                     </div>
-                    <h5>Drag & Drop Your Video Here</h5>
-                    <p class="text-muted">or click to browse files</p>
-                    <p class="small text-muted">
-                        Supported formats: MP4, AVI, MOV, MKV<br>
-                        Maximum size: 100MB | Maximum duration: 10 minutes
+                    
+                    <!-- Upload Area -->
+                    <div class="upload-area" id="upload-area">
+                        <div class="upload-icon">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                        </div>
+                        <h4 class="mb-3">Drag & Drop Your Video Here</h4>
+                        <p class="text-muted mb-3">or click to browse files</p>
+                        <div class="badge bg-primary bg-gradient px-4 py-2 mb-3">
+                            <i class="fas fa-file-video me-2"></i>Supported: MP4, AVI, MOV, MKV
+                        </div>
+                        <p class="small text-muted mb-0">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Maximum size: 100MB | Maximum duration: 10 minutes
+                        </p>
+                        <input type="file" id="video-input" accept="video/*" style="display: none;">
+                    </div>
+                    
+                    <!-- Progress Bar -->
+                    <div class="progress-container mt-4" id="progress-container" style="display: none !important;">
+                        <h5 class="mb-3">
+                            <i class="fas fa-spinner fa-spin me-2"></i>Uploading Video...
+                        </h5>
+                        <div class="progress mb-3" style="height: 24px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-gradient" 
+                                 id="upload-progress" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <div class="text-center">
+                            <small class="text-muted" id="upload-status">
+                                <i class="fas fa-circle-notch fa-spin me-1"></i>Preparing upload...
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Status Section -->
+    <div class="row analysis-status" id="analysis-section" style="display: none !important;">
+        <div class="col-lg-8 mx-auto">
+            <div class="card shadow-lg border-0">
+                <div class="card-body text-center p-5">
+                    <div class="mb-4">
+                        <div class="spinner-border text-primary" role="status" style="width: 4rem; height: 4rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <h3 id="analysis-title" class="mb-3">
+                        <i class="fas fa-brain me-2 text-gradient"></i>Analyzing Your Workout...
+                    </h3>
+                    <p class="text-muted mb-4" id="analysis-message">
+                        This may take a few minutes depending on video length
                     </p>
-                    <input type="file" id="video-input" accept="video/*" style="display: none;">
-                </div>
-                
-                <!-- Progress Bar - Hidden by default -->
-                <div class="progress-container" id="progress-container" style="display: none !important;">
-                    <h5>Uploading Video...</h5>
-                    <div class="progress mb-3">
-                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                             id="upload-progress" role="progressbar" style="width: 0%"></div>
+                    
+                    <div class="progress mb-4" style="height: 24px;">
+                        <div class="progress-bar bg-gradient" id="analysis-progress" role="progressbar" style="width: 0%"></div>
                     </div>
-                    <div class="text-center">
-                        <small class="text-muted" id="upload-status">Preparing upload...</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Analysis Status Section - Hidden by default -->
-<div class="row analysis-status" id="analysis-section" style="display: none !important;">
-    <div class="col-lg-8 mx-auto">
-        <div class="card shadow">
-            <div class="card-body text-center">
-                <div class="mb-3">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                </div>
-                <h4 id="analysis-title">Analyzing Your Workout...</h4>
-                <p class="text-muted" id="analysis-message">This may take a few minutes depending on video length</p>
-                
-                <div class="progress mb-3">
-                    <div class="progress-bar" id="analysis-progress" role="progressbar" style="width: 0%"></div>
-                </div>
-                
-                <div class="row text-center mt-4">
-                    <div class="col-md-4">
-                        <h6 class="text-muted">Session ID</h6>
-                        <small id="session-id-display">-</small>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted">Exercise</h6>
-                        <small id="exercise-display">-</small>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted">Status</h6>
-                        <small id="status-display">Processing</small>
+                    
+                    <div class="row text-center mt-4 g-3">
+                        <div class="col-md-4">
+                            <div class="p-3 bg-light rounded">
+                                <h6 class="text-muted mb-2">
+                                    <i class="fas fa-hashtag me-1"></i>Session ID
+                                </h6>
+                                <small id="session-id-display" class="fw-bold">-</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 bg-light rounded">
+                                <h6 class="text-muted mb-2">
+                                    <i class="fas fa-dumbbell me-1"></i>Exercise
+                                </h6>
+                                <small id="exercise-display" class="fw-bold">-</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 bg-light rounded">
+                                <h6 class="text-muted mb-2">
+                                    <i class="fas fa-circle-notch fa-spin me-1"></i>Status
+                                </h6>
+                                <small id="status-display" class="fw-bold text-primary">Processing</small>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Results Section - Hidden by default -->
-<div class="row results-container" id="results-section" style="display: none !important;">
-    <div class="col-12">
-        <h3><i class="fas fa-chart-line"></i> Analysis Results</h3>
-        
-        <!-- Stats Overview -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="stats-card text-center">
-                    <h3 id="total-reps">0</h3>
-                    <p class="mb-0">Total Reps</p>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stats-card text-center">
-                    <h3 id="correct-reps">0</h3>
-                    <p class="mb-0">Correct Reps</p>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stats-card text-center">
-                    <h3 id="accuracy-score">0%</h3>
-                    <p class="mb-0">Accuracy</p>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stats-card text-center">
-                    <h3 id="calories-burned">0</h3>
-                    <p class="mb-0">Calories</p>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Detailed Analysis -->
-        <div class="row">
-            <div class="col-lg-6">
-                <div class="card shadow mb-4">
-                    <div class="card-header">
-                        <h5><i class="fas fa-comments"></i> Form Feedback</h5>
+    <!-- Results Section -->
+    <div class="row results-container" id="results-section" style="display: none;">
+        <div class="col-12">
+            <h3 class="mb-4">
+                <i class="fas fa-chart-line text-gradient me-2"></i>Analysis Results
+            </h3>
+            
+            <!-- Stats Overview -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="stats-card hover-lift">
+                        <i class="fas fa-repeat fa-2x mb-3 text-primary"></i>
+                        <h3 id="total-reps">0</h3>
+                        <p class="mb-0 text-muted fw-bold">Total Reps</p>
                     </div>
-                    <div class="card-body">
-                        <div id="feedback-list">
-                            <!-- Feedback items will be populated here -->
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card hover-lift">
+                        <i class="fas fa-check-circle fa-2x mb-3 text-success"></i>
+                        <h3 id="correct-reps">0</h3>
+                        <p class="mb-0 text-muted fw-bold">Correct Reps</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card hover-lift">
+                        <i class="fas fa-bullseye fa-2x mb-3 text-info"></i>
+                        <h3 id="accuracy-score">0%</h3>
+                        <p class="mb-0 text-muted fw-bold">Accuracy</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card hover-lift">
+                        <i class="fas fa-fire fa-2x mb-3 text-warning"></i>
+                        <h3 id="calories-burned">0</h3>
+                        <p class="mb-0 text-muted fw-bold">Calories</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Detailed Analysis -->
+            <div class="row">
+                <div class="col-lg-6 mb-4">
+                    <div class="card shadow-lg border-0 h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-comments me-2"></i>Form Feedback
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="feedback-list">
+                                <!-- Feedback items will be populated here -->
+                            </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="card shadow mb-4">
-                    <div class="card-header">
-                        <h5><i class="fas fa-exclamation-triangle"></i> Mistakes Identified</h5>
-                    </div>
-                    <div class="card-body">
-                        <div id="mistakes-list">
-                            <!-- Mistake items will be populated here -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card shadow-lg border-0 h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Mistakes Identified
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="mistakes-list">
+                                <!-- Mistake items will be populated here -->
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <div class="col-lg-6">
-                <div class="card shadow mb-4">
-                    <div class="card-header">
-                        <h5><i class="fas fa-clock"></i> Analysis Timeline</h5>
-                    </div>
-                    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-                        <div id="timeline-list">
-                            <!-- Timeline items will be populated here -->
+            <div class="row">
+                <div class="col-lg-6 mb-4">
+                    <div class="card shadow-lg border-0">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-clock me-2"></i>Analysis Timeline
+                            </h5>
+                        </div>
+                        <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                            <div id="timeline-list">
+                                <!-- Timeline items will be populated here -->
+                            </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="card shadow">
-                    <div class="card-header">
-                        <h5><i class="fas fa-download"></i> Export Options</h5>
-                    </div>
-                    <div class="card-body">
-                        <button class="btn btn-primary btn-block mb-2" id="download-report">
-                            <i class="fas fa-file-pdf"></i> Download PDF Report
-                        </button>
-                        <button class="btn btn-success btn-block mb-2" id="view-annotated-video">
-                            <i class="fas fa-play-circle"></i> View Annotated Video
-                        </button>
-                        <button class="btn btn-outline-secondary btn-block" id="view-video">
-                            <i class="fas fa-play"></i> View Original Video
-                        </button>
-                        <small class="text-muted d-block mt-2">
-                            <i class="fas fa-info-circle"></i> Annotated video includes skeleton overlay, rep counters, and real-time feedback
-                        </small>
-                        <small class="text-muted d-block mt-2">
-                            <i class="fas fa-info-circle"></i> Annotated video includes skeleton overlay, rep counters, and real-time feedback
-                        </small>
+                <div class="col-lg-6 mb-4">
+                    <div class="card shadow-lg border-0">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-download me-2"></i>Export Options
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <button class="btn btn-primary w-100 mb-3 hover-lift" id="download-report">
+                                <i class="fas fa-file-pdf me-2"></i>Download PDF Report
+                            </button>
+                            <button class="btn btn-success w-100 mb-3 hover-lift" id="view-annotated-video">
+                                <i class="fas fa-play-circle me-2"></i>View Annotated Video
+                            </button>
+                            <button class="btn btn-outline-primary w-100 mb-3 hover-lift" id="view-video">
+                                <i class="fas fa-play me-2"></i>View Original Video
+                            </button>
+                            <div class="alert alert-info border-0 mb-0">
+                                <small>
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Annotated video includes skeleton overlay, rep counters, and real-time feedback
+                                </small>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -316,15 +437,7 @@ let currentSessionId = null;
 let analysisInterval = null;
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Recording Analysis v3.4 - Page loaded');
-    
-    // Show cache buster indicator temporarily
-    const cacheIndicator = document.getElementById('cache-indicator');
-    if (cacheIndicator) {
-        setTimeout(() => {
-            cacheIndicator.style.display = 'none';
-        }, 5000);
-    }
+    console.log('🚀 Recording Analysis - Page loaded');
     
     // Get elements
     const uploadArea = document.getElementById('upload-area');

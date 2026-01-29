@@ -2,88 +2,27 @@
 
 {% block head %}
 <style>
-/* Camera Container */
 #camera-container {
     position: relative;
     display: inline-block;
     max-width: 100%;
-    overflow: hidden;
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
+    overflow: hidden; /* Ensure overlay doesn't extend beyond container */
 }
 
 #video {
     display: block;
     max-width: 100%;
     height: auto;
-    border-radius: var(--radius-lg);
-    background: var(--gray-900);
+    border: 2px solid #ddd;
+    border-radius: 8px;
 }
 
 #overlay-canvas {
     position: absolute;
     pointer-events: none;
-    border-radius: var(--radius-lg);
+    border-radius: 6px;
     z-index: 10;
-}
-
-/* Modern Stats Display */
-.live-stat-card {
-    background: white;
-    border-radius: var(--radius-lg);
-    padding: 1.5rem;
-    text-align: center;
-    box-shadow: var(--shadow);
-    transition: all var(--transition);
-    border-top: 4px solid var(--primary-blue);
-}
-
-.live-stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-xl);
-}
-
-.live-stat-value {
-    font-size: 2.5rem;
-    font-weight: 700;
-    line-height: 1;
-    margin-bottom: 0.5rem;
-}
-
-.live-stat-label {
-    font-size: 0.875rem;
-    color: var(--gray-600);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-/* Status Badges */
-.status-badge {
-    padding: 0.5rem 1rem;
-    border-radius: var(--radius-full);
-    font-weight: 600;
-    font-size: 0.875rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.status-badge.connected {
-    background: var(--success-light);
-    color: var(--success);
-}
-
-.status-badge.disconnected {
-    background: var(--danger-light);
-    color: var(--danger);
-}
-
-/* Feedback Alert */
-.feedback-alert {
-    border-radius: var(--radius-md);
-    padding: 1rem;
-    border-left: 4px solid;
-    animation: slideInRight var(--transition-slow);
+    /* Canvas will be dynamically positioned and sized */
 }
 
 @media (max-width: 768px) {
@@ -95,192 +34,152 @@
         width: 100%;
         max-width: 100%;
     }
-    
-    .live-stat-value {
-        font-size: 2rem;
-    }
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4 fade-in">
-    <div class="row mb-4">
-        <div class="col-12">
-            <h2 class="mb-2">
-                <i class="fas fa-video text-gradient me-2"></i>Live Workout Analysis
-            </h2>
-            <p class="text-muted">AI-powered real-time workout tracking with pose detection</p>
+<div class="row">
+    <div class="col-12">
+        <h2>Live Workout Analysis</h2>
+        <p class="text-muted">AI-powered real-time workout tracking with pose detection</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Camera Feed</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <span id="fps-counter" class="badge bg-info">0 FPS</span>
+                    <span id="connection-status" class="badge bg-secondary">Disconnected</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="camera-container" class="text-center">
+                    <video id="video" width="640" height="480" autoplay playsinline muted 
+                           style="border: 2px solid #ddd; border-radius: 8px; max-width: 100%; height: auto;"></video>
+                    <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
+                    <canvas id="overlay-canvas" 
+                            style="position: absolute; pointer-events: none; border-radius: 6px;"></canvas>
+                </div>
+                
+                <div class="mt-3 text-center">
+                    <div class="btn-group mb-2" role="group">
+                        <button id="start-camera" class="btn btn-primary">
+                            <i class="fas fa-video"></i> Start Camera
+                        </button>
+                        <button id="switch-camera" class="btn btn-outline-primary" disabled>
+                            <i class="fas fa-camera-rotate"></i> Switch
+                        </button>
+                        <button id="stop-camera" class="btn btn-danger" disabled>
+                            <i class="fas fa-video-slash"></i> Stop
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mt-2 text-center">
+                    <small id="camera-info" class="text-muted">Click Start Camera to begin</small>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="row">
-        <!-- Camera Feed -->
-        <div class="col-lg-8 mb-4">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="fas fa-camera me-2"></i>Camera Feed
-                    </h5>
-                    <div class="d-flex align-items-center gap-2">
-                        <span id="fps-counter" class="status-badge" style="background: var(--info-light); color: var(--info);">
-                            <i class="fas fa-tachometer-alt"></i>0 FPS
-                        </span>
-                        <span id="connection-status" class="status-badge disconnected">
-                            <i class="fas fa-circle-notch"></i>Disconnected
-                        </span>
+    <div class="col-lg-4">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">Exercise Selection</h5>
+            </div>
+            <div class="card-body">
+                <select id="exercise-select" class="form-select mb-3">
+                    <option value="">Select Exercise</option>
+                    <option value="push_ups">Push-ups</option>
+                    <option value="squats">Squats</option>
+                    <option value="bicep_curls">Bicep Curls</option>
+                </select>
+                <button id="start-workout" class="btn btn-success w-100" disabled>
+                    <i class="fas fa-play"></i> Start Workout
+                </button>
+                <button id="end-workout" class="btn btn-warning w-100 mt-2" disabled>
+                    <i class="fas fa-stop"></i> End Workout
+                </button>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">Live Stats</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h2 id="rep-count" class="text-primary mb-0">0</h2>
+                        <small class="text-muted">Reps</small>
+                    </div>
+                    <div class="col-4">
+                        <h2 id="accuracy" class="text-success mb-0">0%</h2>
+                        <small class="text-muted">Accuracy</small>
+                    </div>
+                    <div class="col-4">
+                        <h2 id="phase" class="text-info mb-0">Ready</h2>
+                        <small class="text-muted">Phase</small>
                     </div>
                 </div>
-                <div class="card-body">
-                    <div id="camera-container" class="text-center mb-3">
-                        <video id="video" width="640" height="480" autoplay playsinline muted></video>
-                        <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
-                        <canvas id="overlay-canvas"></canvas>
-                    </div>
-                    
-                    <div class="text-center">
-                        <div class="btn-group mb-3" role="group">
-                            <button id="start-camera" class="btn btn-primary hover-lift">
-                                <i class="fas fa-video me-2"></i>Start Camera
-                            </button>
-                            <button id="switch-camera" class="btn btn-outline-primary hover-lift" disabled>
-                                <i class="fas fa-camera-rotate me-2"></i>Switch
-                            </button>
-                            <button id="stop-camera" class="btn btn-danger hover-lift" disabled>
-                                <i class="fas fa-video-slash me-2"></i>Stop
-                            </button>
+                <div class="mt-3 text-center">
+                    <div class="row">
+                        <div class="col-6">
+                            <small class="text-muted">Duration</small>
+                            <div id="duration" class="fw-bold">00:00</div>
                         </div>
-                    </div>
-                    
-                    <div class="text-center">
-                        <small id="camera-info" class="text-muted">
-                            <i class="fas fa-info-circle me-1"></i>Click Start Camera to begin
-                        </small>
+                        <div class="col-6">
+                            <small class="text-muted">Calories</small>
+                            <div id="calories" class="fw-bold">0</div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Controls & Stats -->
-        <div class="col-lg-4">
-            <!-- Exercise Selection -->
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-dumbbell me-2"></i>Exercise Selection
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <select id="exercise-select" class="form-select mb-3">
-                        <option value="">Select Exercise</option>
-                        <option value="push_ups">Push-ups</option>
-                        <option value="squats">Squats</option>
-                        <option value="bicep_curls">Bicep Curls</option>
-                    </select>
-                    <button id="start-workout" class="btn btn-success w-100 mb-2 hover-lift" disabled>
-                        <i class="fas fa-play me-2"></i>Start Workout
-                    </button>
-                    <button id="end-workout" class="btn btn-warning w-100 hover-lift" disabled>
-                        <i class="fas fa-stop me-2"></i>End Workout
-                    </button>
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">Live Feedback</h5>
+            </div>
+            <div class="card-body">
+                <div id="current-feedback" class="alert alert-info mb-2">
+                    Select an exercise and start your camera
                 </div>
             </div>
+        </div>
 
-            <!-- Live Stats -->
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-chart-line me-2"></i>Live Stats
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3 mb-3">
-                        <div class="col-4">
-                            <div class="live-stat-card" style="border-top-color: var(--primary-blue);">
-                                <div id="rep-count" class="live-stat-value text-primary">0</div>
-                                <div class="live-stat-label">Reps</div>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="live-stat-card" style="border-top-color: var(--success);">
-                                <div id="accuracy" class="live-stat-value text-success">0%</div>
-                                <div class="live-stat-label">Accuracy</div>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="live-stat-card" style="border-top-color: var(--info);">
-                                <div id="phase" class="live-stat-value text-info" style="font-size: 1.25rem;">Ready</div>
-                                <div class="live-stat-label">Phase</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row g-3">
-                        <div class="col-6">
-                            <div class="text-center">
-                                <small class="text-muted d-block mb-1">
-                                    <i class="fas fa-clock me-1"></i>Duration
-                                </small>
-                                <div id="duration" class="fw-bold fs-5">00:00</div>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="text-center">
-                                <small class="text-muted d-block mb-1">
-                                    <i class="fas fa-fire me-1"></i>Calories
-                                </small>
-                                <div id="calories" class="fw-bold fs-5">0</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Settings</h5>
             </div>
-
-            <!-- Live Feedback -->
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-comments me-2"></i>Live Feedback
-                    </h5>
+            <div class="card-body">
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" id="show-skeleton" checked>
+                    <label class="form-check-label" for="show-skeleton">
+                        Show Skeleton
+                    </label>
                 </div>
-                <div class="card-body">
-                    <div id="current-feedback" class="feedback-alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>Select an exercise and start your camera
-                    </div>
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" id="voice-feedback">
+                    <label class="form-check-label" for="voice-feedback">
+                        Voice Feedback
+                    </label>
                 </div>
-            </div>
-
-            <!-- Settings -->
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-cog me-2"></i>Settings
-                    </h5>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="mirror-mode" checked>
+                    <label class="form-check-label" for="mirror-mode">
+                        Mirror Mode
+                    </label>
                 </div>
-                <div class="card-body">
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="show-skeleton" checked>
-                        <label class="form-check-label" for="show-skeleton">
-                            <i class="fas fa-user me-1"></i>Show Skeleton
-                        </label>
-                    </div>
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="voice-feedback">
-                        <label class="form-check-label" for="voice-feedback">
-                            <i class="fas fa-volume-up me-1"></i>Voice Feedback
-                        </label>
-                    </div>
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="mirror-mode" checked>
-                        <label class="form-check-label" for="mirror-mode">
-                            <i class="fas fa-arrows-left-right me-1"></i>Mirror Mode
-                        </label>
-                    </div>
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="debug-mode">
-                        <label class="form-check-label" for="debug-mode">
-                            <i class="fas fa-bug me-1"></i>Debug Alignment
-                        </label>
-                    </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="debug-mode">
+                    <label class="form-check-label" for="debug-mode">
+                        Debug Alignment
+                    </label>
                 </div>
             </div>
         </div>
