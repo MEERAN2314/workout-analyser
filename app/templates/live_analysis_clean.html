@@ -97,7 +97,7 @@
     }
     
     .live-stat-value {
-        font-size: 2rem;
+        font-size: 1.75rem;
     }
     
     .live-stat-card {
@@ -108,21 +108,18 @@
         font-size: 1rem;
     }
     
-    .btn-group {
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-    }
-    
-    .btn-group .btn {
-        border-radius: var(--radius) !important;
-        margin-bottom: 0.5rem;
-        width: 100%;
-    }
-    
     .status-badge {
         font-size: 0.75rem;
         padding: 0.375rem 0.75rem;
+    }
+    
+    /* Stack buttons on mobile */
+    .d-flex.gap-2.flex-wrap {
+        flex-direction: column;
+    }
+    
+    .d-flex.gap-2.flex-wrap .btn {
+        width: 100%;
     }
 }
 
@@ -132,19 +129,23 @@
     }
     
     .live-stat-label {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
     }
     
-    .card-header {
+    .d-flex.justify-content-between.flex-wrap {
         flex-direction: column;
         align-items: flex-start !important;
-        gap: 0.5rem;
     }
     
-    .card-header > div:last-child {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
+    .d-flex.gap-2.align-items-center {
+        width: 100%;
+        justify-content: space-between;
+        margin-top: 0.5rem;
+    }
+    
+    .btn-lg {
+        padding: 0.75rem 1.25rem;
+        font-size: 1rem;
     }
 }
 </style>
@@ -152,138 +153,151 @@
 
 {% block content %}
 <div class="container-fluid py-4 fade-in">
+    <!-- Page Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <h2 class="mb-2">
-                <i class="fas fa-video text-gradient me-2"></i>Live Workout Analysis
-            </h2>
-            <p class="text-muted">AI-powered real-time workout tracking with pose detection</p>
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                <div>
+                    <h2 class="mb-2">
+                        <i class="fas fa-video text-gradient me-2"></i>Live Workout Analysis
+                    </h2>
+                    <p class="text-muted mb-0">AI-powered real-time workout tracking with pose detection</p>
+                </div>
+                <div class="d-flex gap-2 align-items-center">
+                    <span id="fps-counter" class="status-badge" style="background: var(--info-light); color: var(--info);">
+                        <i class="fas fa-tachometer-alt"></i>0 FPS
+                    </span>
+                    <span id="connection-status" class="status-badge disconnected">
+                        <i class="fas fa-circle-notch"></i>Disconnected
+                    </span>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="row">
-        <!-- Camera Feed -->
-        <div class="col-lg-8 mb-4">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="row g-4">
+        <!-- Left Column - Camera Feed (Larger) -->
+        <div class="col-lg-8 col-xl-9">
+            <div class="card shadow-lg border-0">
+                <div class="card-header">
                     <h5 class="mb-0">
                         <i class="fas fa-camera me-2"></i>Camera Feed
                     </h5>
-                    <div class="d-flex align-items-center gap-2">
-                        <span id="fps-counter" class="status-badge" style="background: var(--info-light); color: var(--info);">
-                            <i class="fas fa-tachometer-alt"></i>0 FPS
-                        </span>
-                        <span id="connection-status" class="status-badge disconnected">
-                            <i class="fas fa-circle-notch"></i>Disconnected
-                        </span>
-                    </div>
                 </div>
-                <div class="card-body">
-                    <div id="camera-container" class="text-center mb-3">
-                        <video id="video" width="640" height="480" autoplay playsinline muted></video>
+                <div class="card-body p-4">
+                    <!-- Camera Container -->
+                    <div id="camera-container" class="text-center mb-4 position-relative">
+                        <video id="video" width="640" height="480" autoplay playsinline muted class="rounded-3 shadow"></video>
                         <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
                         <canvas id="overlay-canvas"></canvas>
-                    </div>
-                    
-                    <div class="text-center">
-                        <div class="btn-group mb-3" role="group">
-                            <button id="start-camera" class="btn btn-primary hover-lift">
-                                <i class="fas fa-video me-2"></i>Start Camera
-                            </button>
-                            <button id="switch-camera" class="btn btn-outline-primary hover-lift" disabled>
-                                <i class="fas fa-camera-rotate me-2"></i>Switch
-                            </button>
-                            <button id="stop-camera" class="btn btn-danger hover-lift" disabled>
-                                <i class="fas fa-video-slash me-2"></i>Stop
-                            </button>
+                        
+                        <!-- Camera Info Overlay -->
+                        <div class="position-absolute bottom-0 start-0 m-3">
+                            <small id="camera-info" class="badge bg-dark bg-opacity-75 text-white px-3 py-2">
+                                <i class="fas fa-info-circle me-1"></i>Click Start Camera to begin
+                            </small>
                         </div>
                     </div>
                     
-                    <div class="text-center">
-                        <small id="camera-info" class="text-muted">
-                            <i class="fas fa-info-circle me-1"></i>Click Start Camera to begin
-                        </small>
+                    <!-- Camera Controls -->
+                    <div class="d-flex justify-content-center gap-2 flex-wrap">
+                        <button id="start-camera" class="btn btn-primary btn-lg hover-lift">
+                            <i class="fas fa-video me-2"></i>Start Camera
+                        </button>
+                        <button id="switch-camera" class="btn btn-outline-primary btn-lg hover-lift" disabled>
+                            <i class="fas fa-camera-rotate me-2"></i>Switch
+                        </button>
+                        <button id="stop-camera" class="btn btn-danger btn-lg hover-lift" disabled>
+                            <i class="fas fa-video-slash me-2"></i>Stop
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Live Stats Row (Below Camera on Large Screens) -->
+            <div class="card shadow-lg border-0 mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Live Statistics
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3">
+                            <div class="live-stat-card" style="border-top-color: var(--primary-blue);">
+                                <div id="rep-count" class="live-stat-value text-primary">0</div>
+                                <div class="live-stat-label">
+                                    <i class="fas fa-repeat me-1"></i>Reps
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="live-stat-card" style="border-top-color: var(--success);">
+                                <div id="accuracy" class="live-stat-value text-success">0%</div>
+                                <div class="live-stat-label">
+                                    <i class="fas fa-bullseye me-1"></i>Accuracy
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="live-stat-card" style="border-top-color: var(--info);">
+                                <div id="phase" class="live-stat-value text-info" style="font-size: 1.25rem;">Ready</div>
+                                <div class="live-stat-label">
+                                    <i class="fas fa-circle-notch me-1"></i>Phase
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="live-stat-card" style="border-top-color: var(--warning);">
+                                <div class="d-flex justify-content-around align-items-center h-100">
+                                    <div class="text-center">
+                                        <div id="duration" class="fw-bold fs-5 text-primary">00:00</div>
+                                        <small class="text-muted">
+                                            <i class="fas fa-clock me-1"></i>Duration
+                                        </small>
+                                    </div>
+                                    <div class="vr"></div>
+                                    <div class="text-center">
+                                        <div id="calories" class="fw-bold fs-5 text-warning">0</div>
+                                        <small class="text-muted">
+                                            <i class="fas fa-fire me-1"></i>Calories
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Controls & Stats -->
-        <div class="col-lg-4">
+        <!-- Right Column - Controls & Settings (Compact) -->
+        <div class="col-lg-4 col-xl-3">
             <!-- Exercise Selection -->
-            <div class="card mb-3">
+            <div class="card shadow-lg border-0 mb-3">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="fas fa-dumbbell me-2"></i>Exercise Selection
+                        <i class="fas fa-dumbbell me-2"></i>Exercise
                     </h5>
                 </div>
                 <div class="card-body">
-                    <select id="exercise-select" class="form-select mb-3">
+                    <select id="exercise-select" class="form-select form-select-lg mb-3">
                         <option value="">Select Exercise</option>
-                        <option value="push_ups">Push-ups</option>
-                        <option value="squats">Squats</option>
-                        <option value="bicep_curls">Bicep Curls</option>
+                        <option value="push_ups">💪 Push-ups</option>
+                        <option value="squats">🦵 Squats</option>
+                        <option value="bicep_curls">💪 Bicep Curls</option>
                     </select>
-                    <button id="start-workout" class="btn btn-success w-100 mb-2 hover-lift" disabled>
+                    <button id="start-workout" class="btn btn-success btn-lg w-100 mb-2 hover-lift" disabled>
                         <i class="fas fa-play me-2"></i>Start Workout
                     </button>
-                    <button id="end-workout" class="btn btn-warning w-100 hover-lift" disabled>
+                    <button id="end-workout" class="btn btn-warning btn-lg w-100 hover-lift" disabled>
                         <i class="fas fa-stop me-2"></i>End Workout
                     </button>
                 </div>
             </div>
 
-            <!-- Live Stats -->
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-chart-line me-2"></i>Live Stats
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3 mb-3">
-                        <div class="col-4">
-                            <div class="live-stat-card" style="border-top-color: var(--primary-blue);">
-                                <div id="rep-count" class="live-stat-value text-primary">0</div>
-                                <div class="live-stat-label">Reps</div>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="live-stat-card" style="border-top-color: var(--success);">
-                                <div id="accuracy" class="live-stat-value text-success">0%</div>
-                                <div class="live-stat-label">Accuracy</div>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="live-stat-card" style="border-top-color: var(--info);">
-                                <div id="phase" class="live-stat-value text-info" style="font-size: 1.25rem;">Ready</div>
-                                <div class="live-stat-label">Phase</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row g-3">
-                        <div class="col-6">
-                            <div class="text-center">
-                                <small class="text-muted d-block mb-1">
-                                    <i class="fas fa-clock me-1"></i>Duration
-                                </small>
-                                <div id="duration" class="fw-bold fs-5">00:00</div>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="text-center">
-                                <small class="text-muted d-block mb-1">
-                                    <i class="fas fa-fire me-1"></i>Calories
-                                </small>
-                                <div id="calories" class="fw-bold fs-5">0</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Live Feedback -->
-            <div class="card mb-3">
+            <div class="card shadow-lg border-0 mb-3">
                 <div class="card-header">
                     <h5 class="mb-0">
                         <i class="fas fa-comments me-2"></i>Live Feedback
@@ -297,7 +311,7 @@
             </div>
 
             <!-- Settings -->
-            <div class="card">
+            <div class="card shadow-lg border-0">
                 <div class="card-header">
                     <h5 class="mb-0">
                         <i class="fas fa-cog me-2"></i>Settings
