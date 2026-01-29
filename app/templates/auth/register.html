@@ -1,38 +1,109 @@
 {% extends "base.html" %}
 
+{% block head %}
+<style>
+.step-indicator {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 2rem;
+}
+
+.step-indicator-item {
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--gray-200);
+    color: var(--gray-600);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    transition: all var(--transition);
+}
+
+.step-indicator-item.active .step-number {
+    background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-light) 100%);
+    color: white;
+    transform: scale(1.1);
+}
+
+.step-indicator-item.completed .step-number {
+    background: var(--success);
+    color: white;
+}
+
+.step-line {
+    width: 80px;
+    height: 2px;
+    background: var(--gray-200);
+    margin: 0 1rem;
+}
+
+.step-indicator-item.completed .step-line {
+    background: var(--success);
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row justify-content-center">
+<div class="row justify-content-center fade-in">
     <div class="col-md-8">
-        <div class="card shadow">
-            <div class="card-header bg-success text-white">
+        <div class="card hover-lift">
+            <div class="card-header">
                 <h4 class="mb-0">
-                    <i class="fas fa-user-plus me-2"></i>Create Your Account
+                    <i class="fa-solid fa-user-plus me-2"></i>
+                    Create Your Account
                 </h4>
             </div>
-            <div class="card-body">
+            <div class="card-body p-4">
                 <!-- Alert for messages -->
                 <div id="alert-container"></div>
+                
+                <!-- Step Indicator -->
+                <div class="step-indicator">
+                    <div class="step-indicator-item active" id="indicator-1">
+                        <div class="step-number">
+                            <i class="fa-solid fa-user"></i>
+                        </div>
+                    </div>
+                    <div class="step-line"></div>
+                    <div class="step-indicator-item" id="indicator-2">
+                        <div class="step-number">
+                            <i class="fa-solid fa-id-card"></i>
+                        </div>
+                    </div>
+                    <div class="step-line"></div>
+                    <div class="step-indicator-item" id="indicator-3">
+                        <div class="step-number">
+                            <i class="fa-solid fa-bullseye"></i>
+                        </div>
+                    </div>
+                </div>
                 
                 <!-- Multi-step form -->
                 <div id="registration-steps">
                     <!-- Step 1: Basic Info -->
                     <div class="step" id="step-1">
-                        <h5 class="mb-3">
-                            <i class="fas fa-user me-2"></i>Basic Information
-                        </h5>
+                        <h5 class="mb-4 text-center">Basic Information</h5>
                         
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="username" class="form-label">
-                                    <i class="fas fa-at me-1"></i>Username *
+                                    <i class="fa-solid fa-at me-2"></i>Username *
                                 </label>
                                 <input type="text" class="form-control" id="username" 
                                        placeholder="Choose a unique username" required>
-                                <div class="form-text">3-50 characters, letters, numbers, and underscore only</div>
+                                <div class="form-text">3-50 characters, alphanumeric and underscore</div>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="email" class="form-label">
-                                    <i class="fas fa-envelope me-1"></i>Email *
+                                    <i class="fa-solid fa-envelope me-2"></i>Email *
                                 </label>
                                 <input type="email" class="form-control" id="email" 
                                        placeholder="your@email.com" required>
@@ -42,7 +113,7 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="password" class="form-label">
-                                    <i class="fas fa-lock me-1"></i>Password *
+                                    <i class="fa-solid fa-lock me-2"></i>Password *
                                 </label>
                                 <input type="password" class="form-control" id="password" 
                                        placeholder="Minimum 8 characters" required>
@@ -50,59 +121,57 @@
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="confirm-password" class="form-label">
-                                    <i class="fas fa-lock me-1"></i>Confirm Password *
+                                    <i class="fa-solid fa-lock me-2"></i>Confirm Password *
                                 </label>
                                 <input type="password" class="form-control" id="confirm-password" 
                                        placeholder="Repeat your password" required>
                             </div>
                         </div>
                         
-                        <div class="mb-3">
+                        <div class="mb-4">
                             <label for="full-name" class="form-label">
-                                <i class="fas fa-id-card me-1"></i>Full Name
+                                <i class="fa-solid fa-id-card me-2"></i>Full Name
                             </label>
                             <input type="text" class="form-control" id="full-name" 
                                    placeholder="Your full name (optional)">
                         </div>
                         
-                        <button type="button" class="btn btn-primary" onclick="nextStep(2)">
-                            Next: Profile Info <i class="fas fa-arrow-right ms-2"></i>
+                        <button type="button" class="btn btn-primary btn-lg w-100" onclick="nextStep(2)">
+                            Next: Profile Info <i class="fa-solid fa-arrow-right ms-2"></i>
                         </button>
                     </div>
                     
                     <!-- Step 2: Profile Info -->
                     <div class="step d-none" id="step-2">
-                        <h5 class="mb-3">
-                            <i class="fas fa-user-cog me-2"></i>Profile Information
-                        </h5>
+                        <h5 class="mb-4 text-center">Profile Information</h5>
                         
                         <div class="row">
                             <div class="col-md-4 mb-3">
                                 <label for="age" class="form-label">
-                                    <i class="fas fa-birthday-cake me-1"></i>Age
+                                    <i class="fa-solid fa-cake-candles me-2"></i>Age
                                 </label>
                                 <input type="number" class="form-control" id="age" 
                                        min="13" max="120" placeholder="Your age">
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label for="height" class="form-label">
-                                    <i class="fas fa-ruler-vertical me-1"></i>Height (cm)
+                                    <i class="fa-solid fa-ruler-vertical me-2"></i>Height (cm)
                                 </label>
                                 <input type="number" class="form-control" id="height" 
                                        step="0.1" placeholder="170.5">
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label for="weight" class="form-label">
-                                    <i class="fas fa-weight me-1"></i>Weight (kg)
+                                    <i class="fa-solid fa-weight-scale me-2"></i>Weight (kg)
                                 </label>
                                 <input type="number" class="form-control" id="weight" 
                                        step="0.1" placeholder="70.0">
                             </div>
                         </div>
                         
-                        <div class="mb-3">
+                        <div class="mb-4">
                             <label for="fitness-level" class="form-label">
-                                <i class="fas fa-dumbbell me-1"></i>Fitness Level
+                                <i class="fa-solid fa-dumbbell me-2"></i>Fitness Level
                             </label>
                             <select class="form-select" id="fitness-level">
                                 <option value="">Select your fitness level</option>
@@ -112,86 +181,95 @@
                             </select>
                         </div>
                         
-                        <div class="d-flex justify-content-between">
-                            <button type="button" class="btn btn-outline-secondary" onclick="prevStep(1)">
-                                <i class="fas fa-arrow-left me-2"></i>Back
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-secondary btn-lg" onclick="prevStep(1)">
+                                <i class="fa-solid fa-arrow-left me-2"></i>Back
                             </button>
-                            <button type="button" class="btn btn-primary" onclick="nextStep(3)">
-                                Next: Goals <i class="fas fa-arrow-right ms-2"></i>
+                            <button type="button" class="btn btn-primary btn-lg flex-grow-1" onclick="nextStep(3)">
+                                Next: Goals <i class="fa-solid fa-arrow-right ms-2"></i>
                             </button>
                         </div>
                     </div>
                     
                     <!-- Step 3: Goals -->
                     <div class="step d-none" id="step-3">
-                        <h5 class="mb-3">
-                            <i class="fas fa-target me-2"></i>Fitness Goals
-                        </h5>
+                        <h5 class="mb-4 text-center">Fitness Goals</h5>
                         
-                        <p class="text-muted mb-3">Select your fitness goals (optional):</p>
+                        <p class="text-muted text-center mb-4">Select your fitness goals (optional):</p>
                         
-                        <div class="row">
+                        <div class="row g-3">
                             <div class="col-md-6">
-                                <div class="form-check mb-2">
+                                <div class="form-check p-3 border rounded hover-lift">
                                     <input class="form-check-input" type="checkbox" value="weight_loss" id="goal-weight-loss">
-                                    <label class="form-check-label" for="goal-weight-loss">
-                                        <i class="fas fa-weight-hanging me-2"></i>Weight Loss
-                                    </label>
-                                </div>
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" value="muscle_gain" id="goal-muscle-gain">
-                                    <label class="form-check-label" for="goal-muscle-gain">
-                                        <i class="fas fa-dumbbell me-2"></i>Muscle Gain
-                                    </label>
-                                </div>
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" value="endurance" id="goal-endurance">
-                                    <label class="form-check-label" for="goal-endurance">
-                                        <i class="fas fa-running me-2"></i>Endurance
+                                    <label class="form-check-label w-100" for="goal-weight-loss">
+                                        <i class="fa-solid fa-weight-scale text-primary me-2"></i>
+                                        <strong>Weight Loss</strong>
                                     </label>
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="form-check mb-2">
+                                <div class="form-check p-3 border rounded hover-lift">
+                                    <input class="form-check-input" type="checkbox" value="muscle_gain" id="goal-muscle-gain">
+                                    <label class="form-check-label w-100" for="goal-muscle-gain">
+                                        <i class="fa-solid fa-dumbbell text-primary me-2"></i>
+                                        <strong>Muscle Gain</strong>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check p-3 border rounded hover-lift">
+                                    <input class="form-check-input" type="checkbox" value="endurance" id="goal-endurance">
+                                    <label class="form-check-label w-100" for="goal-endurance">
+                                        <i class="fa-solid fa-person-running text-primary me-2"></i>
+                                        <strong>Endurance</strong>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check p-3 border rounded hover-lift">
                                     <input class="form-check-input" type="checkbox" value="strength" id="goal-strength">
-                                    <label class="form-check-label" for="goal-strength">
-                                        <i class="fas fa-fist-raised me-2"></i>Strength
+                                    <label class="form-check-label w-100" for="goal-strength">
+                                        <i class="fa-solid fa-hand-fist text-primary me-2"></i>
+                                        <strong>Strength</strong>
                                     </label>
                                 </div>
-                                <div class="form-check mb-2">
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check p-3 border rounded hover-lift">
                                     <input class="form-check-input" type="checkbox" value="flexibility" id="goal-flexibility">
-                                    <label class="form-check-label" for="goal-flexibility">
-                                        <i class="fas fa-child me-2"></i>Flexibility
+                                    <label class="form-check-label w-100" for="goal-flexibility">
+                                        <i class="fa-solid fa-person-walking text-primary me-2"></i>
+                                        <strong>Flexibility</strong>
                                     </label>
                                 </div>
-                                <div class="form-check mb-2">
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check p-3 border rounded hover-lift">
                                     <input class="form-check-input" type="checkbox" value="general_fitness" id="goal-general">
-                                    <label class="form-check-label" for="goal-general">
-                                        <i class="fas fa-heart me-2"></i>General Fitness
+                                    <label class="form-check-label w-100" for="goal-general">
+                                        <i class="fa-solid fa-heart text-primary me-2"></i>
+                                        <strong>General Fitness</strong>
                                     </label>
                                 </div>
                             </div>
                         </div>
                         
-                        <div class="d-flex justify-content-between mt-4">
-                            <button type="button" class="btn btn-outline-secondary" onclick="prevStep(2)">
-                                <i class="fas fa-arrow-left me-2"></i>Back
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="button" class="btn btn-outline-secondary btn-lg" onclick="prevStep(2)">
+                                <i class="fa-solid fa-arrow-left me-2"></i>Back
                             </button>
-                            <button type="button" class="btn btn-success" id="register-btn" onclick="submitRegistration()">
-                                <i class="fas fa-user-plus me-2"></i>Create Account
+                            <button type="button" class="btn btn-success btn-lg flex-grow-1" id="register-btn" onclick="submitRegistration()">
+                                <i class="fa-solid fa-user-plus me-2"></i>Create Account
                             </button>
                         </div>
                     </div>
                 </div>
-                
-                <hr class="mt-4">
-                
-                <div class="text-center">
-                    <p class="mb-0">Already have an account?</p>
-                    <a href="/auth/login" class="btn btn-outline-primary">
-                        <i class="fas fa-sign-in-alt me-2"></i>Login Here
-                    </a>
-                </div>
+            </div>
+            <div class="card-footer text-center">
+                <p class="mb-2 text-muted">Already have an account?</p>
+                <a href="/auth/login" class="btn btn-outline-primary">
+                    <i class="fa-solid fa-right-to-bracket me-2"></i>Login Here
+                </a>
             </div>
         </div>
     </div>
@@ -212,6 +290,9 @@ function nextStep(step) {
     
     // Show target step
     document.getElementById(`step-${step}`).classList.remove('d-none');
+    
+    // Update indicators
+    updateStepIndicators(step);
 }
 
 function prevStep(step) {
@@ -220,6 +301,22 @@ function prevStep(step) {
     
     // Show target step
     document.getElementById(`step-${step}`).classList.remove('d-none');
+    
+    // Update indicators
+    updateStepIndicators(step);
+}
+
+function updateStepIndicators(currentStep) {
+    for (let i = 1; i <= 3; i++) {
+        const indicator = document.getElementById(`indicator-${i}`);
+        indicator.classList.remove('active', 'completed');
+        
+        if (i < currentStep) {
+            indicator.classList.add('completed');
+        } else if (i === currentStep) {
+            indicator.classList.add('active');
+        }
+    }
 }
 
 function validateStep1() {
@@ -243,7 +340,7 @@ function validateStep1() {
         return false;
     }
     
-    // Check byte length (bcrypt has 72 byte limit, not character limit)
+    // Check byte length (bcrypt has 72 byte limit)
     const passwordBytes = new TextEncoder().encode(password).length;
     if (passwordBytes > 72) {
         showAlert(`Password is too long (${passwordBytes} bytes). Maximum is 72 bytes. Try a shorter password or use fewer special characters.`, 'danger');

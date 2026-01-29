@@ -1,132 +1,158 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row h-100">
-    <!-- Chat Sessions Sidebar -->
-    <div class="col-md-3 border-end">
-        <div class="d-flex flex-column h-100">
-            <div class="p-3 border-bottom">
-                <h5 class="mb-3">
-                    <i class="fas fa-robot me-2"></i>AI Coach
-                </h5>
-                <button class="btn btn-primary w-100" onclick="startNewChat()">
-                    <i class="fas fa-plus me-2"></i>New Chat
-                </button>
-            </div>
-            
-            <div class="flex-grow-1 overflow-auto p-3">
-                <div id="chat-sessions">
-                    <div class="text-center text-muted">
-                        <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
-                        <p>Loading sessions...</p>
+<div class="container-fluid py-4 fade-in">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-2">
+                <i class="fas fa-robot text-gradient me-2"></i>AI Workout Coach
+            </h2>
+            <p class="text-muted">Get personalized fitness advice and workout insights powered by AI</p>
+        </div>
+    </div>
+
+    <div class="row" style="min-height: 70vh;">
+        <!-- Chat Sessions Sidebar -->
+        <div class="col-lg-3 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-comments me-2"></i>Chat History
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="p-3 border-bottom">
+                        <button class="btn btn-primary w-100 hover-lift" onclick="startNewChat()">
+                            <i class="fas fa-plus me-2"></i>New Chat
+                        </button>
+                    </div>
+                    
+                    <div class="flex-grow-1 overflow-auto p-3" style="max-height: calc(100vh - 250px);">
+                        <div id="chat-sessions">
+                            <div class="text-center text-muted py-5">
+                                <div class="spinner-border text-primary mb-3" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p>Loading sessions...</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-    
-    <!-- Chat Interface -->
-    <div class="col-md-9">
-        <div class="d-flex flex-column h-100">
-            <!-- Chat Header -->
-            <div class="p-3 border-bottom bg-light">
-                <div class="d-flex justify-content-between align-items-center">
+        
+        <!-- Chat Interface -->
+        <div class="col-lg-9 mb-4">
+            <div class="card h-100 d-flex flex-column">
+                <!-- Chat Header -->
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <div>
                         <h5 class="mb-0" id="chat-title">
                             <i class="fas fa-robot me-2"></i>AI Workout Coach
                         </h5>
-                        <small class="text-muted" id="chat-subtitle">
+                        <small class="text-white-50" id="chat-subtitle">
                             Ask me about your workouts, form, or fitness goals
                         </small>
                     </div>
                     <div>
-                        <button class="btn btn-outline-danger btn-sm" onclick="deleteCurrentChat()" id="delete-chat-btn" style="display: none;">
+                        <button class="btn btn-danger btn-sm hover-lift" onclick="deleteCurrentChat()" id="delete-chat-btn" style="display: none;">
                             <i class="fas fa-trash me-1"></i>Delete
                         </button>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Chat Messages -->
-            <div class="flex-grow-1 overflow-auto p-3" id="chat-messages" style="height: 400px;">
-                <div class="text-center text-muted" id="welcome-message">
-                    <div class="mb-4">
-                        <i class="fas fa-robot fa-4x text-primary mb-3"></i>
-                        <h4>Welcome to Your AI Workout Coach!</h4>
-                        <p class="lead">I'm here to help you improve your workouts and reach your fitness goals.</p>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <div class="card h-100">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-dumbbell fa-2x text-success mb-2"></i>
-                                    <h6>Workout Analysis</h6>
-                                    <p class="small text-muted">Get insights about your recent workouts and performance</p>
+                
+                <!-- Chat Messages -->
+                <div class="card-body flex-grow-1 overflow-auto p-4" id="chat-messages" style="max-height: calc(100vh - 350px); background: var(--gray-50);">
+                    <div class="text-center" id="welcome-message">
+                        <div class="mb-5 fade-in">
+                            <div class="mb-4">
+                                <i class="fas fa-robot fa-4x text-gradient mb-3"></i>
+                            </div>
+                            <h3 class="mb-3">Welcome to Your AI Workout Coach!</h3>
+                            <p class="lead text-muted">I'm here to help you improve your workouts and reach your fitness goals.</p>
+                        </div>
+                        
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <div class="card hover-lift h-100 border-0 shadow-sm">
+                                    <div class="card-body text-center">
+                                        <div class="stat-card-icon mx-auto mb-3" style="background: linear-gradient(135deg, var(--success) 0%, #34d399 100%);">
+                                            <i class="fas fa-dumbbell"></i>
+                                        </div>
+                                        <h6 class="fw-bold">Workout Analysis</h6>
+                                        <p class="small text-muted mb-0">Get insights about your recent workouts and performance</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card hover-lift h-100 border-0 shadow-sm">
+                                    <div class="card-body text-center">
+                                        <div class="stat-card-icon mx-auto mb-3" style="background: linear-gradient(135deg, var(--info) 0%, var(--accent-cyan) 100%);">
+                                            <i class="fas fa-chart-line"></i>
+                                        </div>
+                                        <h6 class="fw-bold">Form Improvement</h6>
+                                        <p class="small text-muted mb-0">Learn how to perfect your exercise technique</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card hover-lift h-100 border-0 shadow-sm">
+                                    <div class="card-body text-center">
+                                        <div class="stat-card-icon mx-auto mb-3" style="background: linear-gradient(135deg, var(--warning) 0%, #fbbf24 100%);">
+                                            <i class="fas fa-bullseye"></i>
+                                        </div>
+                                        <h6 class="fw-bold">Goal Setting</h6>
+                                        <p class="small text-muted mb-0">Plan your fitness journey and track progress</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card hover-lift h-100 border-0 shadow-sm">
+                                    <div class="card-body text-center">
+                                        <div class="stat-card-icon mx-auto mb-3" style="background: linear-gradient(135deg, var(--danger) 0%, #f87171 100%);">
+                                            <i class="fas fa-lightbulb"></i>
+                                        </div>
+                                        <h6 class="fw-bold">Personalized Tips</h6>
+                                        <p class="small text-muted mb-0">Get advice tailored to your fitness level and goals</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <div class="card h-100">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-chart-line fa-2x text-info mb-2"></i>
-                                    <h6>Form Improvement</h6>
-                                    <p class="small text-muted">Learn how to perfect your exercise technique</p>
-                                </div>
+                        
+                        <div class="mt-4">
+                            <h6 class="mb-3">Try asking me:</h6>
+                            <div class="d-flex flex-wrap justify-content-center gap-2">
+                                <button class="btn btn-outline-primary btn-sm hover-lift" onclick="sendQuickMessage('How can I improve my push-up form?')">
+                                    <i class="fas fa-comment-dots me-1"></i>"How can I improve my push-up form?"
+                                </button>
+                                <button class="btn btn-outline-primary btn-sm hover-lift" onclick="sendQuickMessage('Analyze my recent workouts')">
+                                    <i class="fas fa-chart-bar me-1"></i>"Analyze my recent workouts"
+                                </button>
+                                <button class="btn btn-outline-primary btn-sm hover-lift" onclick="sendQuickMessage('What exercises should I do next?')">
+                                    <i class="fas fa-question-circle me-1"></i>"What exercises should I do next?"
+                                </button>
                             </div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <div class="card h-100">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-target fa-2x text-warning mb-2"></i>
-                                    <h6>Goal Setting</h6>
-                                    <p class="small text-muted">Plan your fitness journey and track progress</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <div class="card h-100">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-lightbulb fa-2x text-danger mb-2"></i>
-                                    <h6>Personalized Tips</h6>
-                                    <p class="small text-muted">Get advice tailored to your fitness level and goals</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mt-4">
-                        <h6>Try asking me:</h6>
-                        <div class="d-flex flex-wrap justify-content-center gap-2">
-                            <button class="btn btn-outline-primary btn-sm" onclick="sendQuickMessage('How can I improve my push-up form?')">
-                                "How can I improve my push-up form?"
-                            </button>
-                            <button class="btn btn-outline-success btn-sm" onclick="sendQuickMessage('Analyze my recent workouts')">
-                                "Analyze my recent workouts"
-                            </button>
-                            <button class="btn btn-outline-info btn-sm" onclick="sendQuickMessage('What exercises should I do next?')">
-                                "What exercises should I do next?"
-                            </button>
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Chat Input -->
-            <div class="p-3 border-top">
-                <div class="input-group">
-                    <input type="text" class="form-control" id="message-input" 
-                           placeholder="Ask me about your workouts, form, or fitness goals..." 
-                           maxlength="2000">
-                    <button class="btn btn-primary" type="button" onclick="sendMessage()" id="send-btn">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
-                </div>
-                <div class="form-text">
-                    <small class="text-muted">
-                        <i class="fas fa-info-circle me-1"></i>
-                        I can analyze your workout data and provide personalized fitness advice
-                    </small>
+                
+                <!-- Chat Input -->
+                <div class="card-footer bg-white border-top">
+                    <div class="input-group">
+                        <input type="text" class="form-control border-2" id="message-input" 
+                               placeholder="Ask me about your workouts, form, or fitness goals..." 
+                               maxlength="2000"
+                               style="border-radius: var(--radius) 0 0 var(--radius);">
+                        <button class="btn btn-primary px-4 hover-lift" type="button" onclick="sendMessage()" id="send-btn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            I can analyze your workout data and provide personalized fitness advice
+                        </small>
+                    </div>
                 </div>
             </div>
         </div>
@@ -135,13 +161,13 @@
 
 <!-- Context Modal -->
 <div class="modal fade" id="contextModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 bg-gradient">
+                <h5 class="modal-title text-white">
                     <i class="fas fa-info-circle me-2"></i>Context Used
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div id="context-content">
@@ -151,6 +177,135 @@
         </div>
     </div>
 </div>
+
+<style>
+/* Modern Chat Styles */
+.message {
+    animation: slideInMessage 0.3s ease-out;
+}
+
+@keyframes slideInMessage {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.message-bubble {
+    max-width: 75%;
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition);
+}
+
+.message-bubble:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.message-bubble.user {
+    background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-light) 100%);
+    color: white;
+    margin-left: auto;
+}
+
+.message-bubble.assistant {
+    background: white;
+    border: 1px solid var(--gray-200);
+}
+
+.chat-session-item {
+    border-radius: var(--radius);
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all var(--transition);
+    border: 1px solid var(--gray-200);
+}
+
+.chat-session-item:hover {
+    background: var(--gray-100);
+    transform: translateX(4px);
+    box-shadow: var(--shadow-sm);
+}
+
+.chat-session-item.active {
+    background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-light) 100%);
+    color: white;
+    border-color: var(--primary-blue);
+}
+
+.chat-session-item.active .text-muted {
+    color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.typing-indicator {
+    display: inline-flex;
+    gap: 4px;
+    padding: 1rem;
+}
+
+.typing-indicator span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--gray-400);
+    animation: typing 1.4s infinite;
+}
+
+.typing-indicator span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typing {
+    0%, 60%, 100% {
+        transform: translateY(0);
+    }
+    30% {
+        transform: translateY(-10px);
+    }
+}
+
+.bg-gradient {
+    background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-light) 100%);
+}
+
+/* Mobile optimizations for chat */
+@media (max-width: 768px) {
+    .chat-session-item {
+        padding: 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .message-bubble {
+        max-width: 85%;
+        padding: 0.875rem 1rem;
+        font-size: 0.9375rem;
+    }
+    
+    .stat-card-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.25rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .message-bubble {
+        max-width: 90%;
+        padding: 0.75rem 0.875rem;
+    }
+}
+</style>
 {% endblock %}
 
 {% block scripts %}
@@ -183,24 +338,26 @@ async function loadChatSessions() {
         
         const sessionsHtml = response.sessions.length > 0 ? 
             response.sessions.map(session => `
-                <div class="chat-session-item mb-2 p-2 border rounded cursor-pointer ${session.id === currentSessionId ? 'bg-primary text-white' : 'bg-light'}" 
+                <div class="chat-session-item ${session.id === currentSessionId ? 'active' : ''}" 
                      onclick="loadChatSession('${session.id}')">
                     <div class="d-flex justify-content-between align-items-start">
                         <div class="flex-grow-1">
-                            <h6 class="mb-1 small">${session.title}</h6>
+                            <h6 class="mb-1 small fw-bold">${session.title}</h6>
                             ${session.last_message ? `
-                                <p class="mb-1 small text-muted">${session.last_message.content}</p>
+                                <p class="mb-1 small text-muted text-truncate">${session.last_message.content}</p>
                             ` : ''}
-                            <small class="text-muted">${new Date(session.updated_at).toLocaleDateString()}</small>
+                            <small class="text-muted"><i class="fas fa-clock me-1"></i>${new Date(session.updated_at).toLocaleDateString()}</small>
                         </div>
-                        <span class="badge bg-secondary">${session.message_count}</span>
+                        <span class="badge bg-primary rounded-pill">${session.message_count}</span>
                     </div>
                 </div>
             `).join('') :
-            `<div class="text-center text-muted">
-                <i class="fas fa-comments fa-2x mb-2"></i>
+            `<div class="text-center text-muted py-5">
+                <i class="fas fa-comments fa-3x mb-3 opacity-50"></i>
                 <p>No chat sessions yet</p>
-                <button class="btn btn-primary btn-sm" onclick="startNewChat()">Start First Chat</button>
+                <button class="btn btn-primary btn-sm hover-lift" onclick="startNewChat()">
+                    <i class="fas fa-plus me-1"></i>Start First Chat
+                </button>
             </div>`;
         
         document.getElementById('chat-sessions').innerHTML = sessionsHtml;
@@ -334,20 +491,20 @@ function addMessage(role, content, timestamp, contextUsed = null) {
     const messagesContainer = document.getElementById('chat-messages');
     
     const messageDiv = document.createElement('div');
-    messageDiv.className = `message mb-3 ${role === 'user' ? 'text-end' : ''}`;
+    messageDiv.className = `message mb-3 d-flex ${role === 'user' ? 'justify-content-end' : 'justify-content-start'}`;
     
     const time = new Date(timestamp).toLocaleTimeString();
     
     messageDiv.innerHTML = `
-        <div class="d-inline-block max-width-75 ${role === 'user' ? 'bg-primary text-white' : 'bg-light'} rounded p-3">
-            <div class="d-flex align-items-start">
-                ${role === 'assistant' ? '<i class="fas fa-robot me-2 mt-1"></i>' : ''}
+        <div class="message-bubble ${role}">
+            <div class="d-flex align-items-start gap-2">
+                ${role === 'assistant' ? '<i class="fas fa-robot mt-1"></i>' : ''}
                 <div class="flex-grow-1">
                     <div class="message-content">${formatMessage(content)}</div>
-                    <div class="d-flex justify-content-between align-items-center mt-2">
-                        <small class="text-muted">${time}</small>
+                    <div class="d-flex justify-content-between align-items-center mt-2 gap-2">
+                        <small class="opacity-75"><i class="fas fa-clock me-1"></i>${time}</small>
                         ${contextUsed ? `
-                            <button class="btn btn-link btn-sm p-0 text-muted" onclick="showContext('${JSON.stringify(contextUsed).replace(/'/g, "\\'")}')">
+                            <button class="btn btn-link btn-sm p-0 opacity-75" onclick='showContext(${JSON.stringify(contextUsed)})'>
                                 <i class="fas fa-info-circle"></i>
                             </button>
                         ` : ''}
@@ -371,25 +528,29 @@ function formatMessage(content) {
 
 function showContext(contextJson) {
     try {
-        const context = JSON.parse(contextJson);
+        const context = contextJson;
         
         let contextHtml = '';
         
         if (context.user_context) {
             contextHtml += `
-                <h6><i class="fas fa-user me-2"></i>User Profile</h6>
-                <pre class="bg-light p-2 rounded">${context.user_context}</pre>
+                <div class="mb-3">
+                    <h6><i class="fas fa-user me-2 text-primary"></i>User Profile</h6>
+                    <pre class="bg-light p-3 rounded">${context.user_context}</pre>
+                </div>
             `;
         }
         
         if (context.workout_context) {
             contextHtml += `
-                <h6 class="mt-3"><i class="fas fa-dumbbell me-2"></i>Recent Workouts</h6>
-                <pre class="bg-light p-2 rounded">${context.workout_context}</pre>
+                <div class="mb-3">
+                    <h6><i class="fas fa-dumbbell me-2 text-primary"></i>Recent Workouts</h6>
+                    <pre class="bg-light p-3 rounded">${context.workout_context}</pre>
+                </div>
             `;
         }
         
-        document.getElementById('context-content').innerHTML = contextHtml || '<p>No context information available.</p>';
+        document.getElementById('context-content').innerHTML = contextHtml || '<p class="text-muted">No context information available.</p>';
         
         new bootstrap.Modal(document.getElementById('contextModal')).show();
         
@@ -445,14 +606,5 @@ function scrollToBottom() {
     const messagesContainer = document.getElementById('chat-messages');
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
-
-// CSS for max-width
-const style = document.createElement('style');
-style.textContent = `
-    .max-width-75 { max-width: 75%; }
-    .cursor-pointer { cursor: pointer; }
-    .chat-session-item:hover { background-color: #f8f9fa !important; }
-`;
-document.head.appendChild(style);
 </script>
 {% endblock %}
