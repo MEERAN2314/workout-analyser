@@ -441,14 +441,22 @@ async function handleFileUpload(file) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('exercise_name', document.getElementById('exercise-select').value);
-    formData.append('user_id', 'demo_user');
     
     try {
         console.log('📤 Uploading file to server...');
         
+        // Get authentication token
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            throw new Error('Not authenticated. Please login first.');
+        }
+        
         // Upload and process (NEW ENDPOINT)
         const response = await fetch('/recording/upload-simple', {
             method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
             body: formData
         });
         
@@ -942,4 +950,18 @@ async function viewOriginalVideo(sessionId) {
 }
 
 </script>
+
+<script src="/static/js/auth.js"></script>
+<script>
+// Check authentication on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if user is authenticated
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        alert('Please login to use the recording analysis feature.');
+        window.location.href = '/auth/login';
+    }
+});
+</script>
+
 {% endblock %}

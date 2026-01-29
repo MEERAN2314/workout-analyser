@@ -1,10 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row">
+<div class="row mb-4">
     <div class="col-12">
-        <h2>Dashboard</h2>
-        <p class="text-muted">Your workout progress and analytics</p>
+        <h2>
+            <i class="fas fa-chart-line me-2"></i>Dashboard
+        </h2>
+        <p class="text-muted">Welcome back, <span id="user-name">User</span>! Here's your workout progress.</p>
     </div>
 </div>
 
@@ -12,8 +14,10 @@
     <div class="col-md-3 mb-4">
         <div class="card bg-primary text-white">
             <div class="card-body">
-                <h5 class="card-title">Total Workouts</h5>
-                <h2 class="card-text">0</h2>
+                <h5 class="card-title">
+                    <i class="fas fa-dumbbell me-2"></i>Total Workouts
+                </h5>
+                <h2 class="card-text" id="total-workouts">0</h2>
                 <small>This week</small>
             </div>
         </div>
@@ -21,8 +25,10 @@
     <div class="col-md-3 mb-4">
         <div class="card bg-success text-white">
             <div class="card-body">
-                <h5 class="card-title">Calories Burned</h5>
-                <h2 class="card-text">0</h2>
+                <h5 class="card-title">
+                    <i class="fas fa-fire me-2"></i>Calories Burned
+                </h5>
+                <h2 class="card-text" id="calories-burned">0</h2>
                 <small>This week</small>
             </div>
         </div>
@@ -30,8 +36,10 @@
     <div class="col-md-3 mb-4">
         <div class="card bg-info text-white">
             <div class="card-body">
-                <h5 class="card-title">Average Accuracy</h5>
-                <h2 class="card-text">0%</h2>
+                <h5 class="card-title">
+                    <i class="fas fa-bullseye me-2"></i>Average Accuracy
+                </h5>
+                <h2 class="card-text" id="avg-accuracy">0%</h2>
                 <small>Last 10 workouts</small>
             </div>
         </div>
@@ -39,8 +47,10 @@
     <div class="col-md-3 mb-4">
         <div class="card bg-warning text-white">
             <div class="card-body">
-                <h5 class="card-title">Streak</h5>
-                <h2 class="card-text">0</h2>
+                <h5 class="card-title">
+                    <i class="fas fa-calendar-check me-2"></i>Streak
+                </h5>
+                <h2 class="card-text" id="streak">0</h2>
                 <small>Days</small>
             </div>
         </div>
@@ -50,17 +60,179 @@
 <div class="row">
     <div class="col-12">
         <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Recent Workouts</h5>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-history me-2"></i>Recent Workouts
+                </h5>
+                <div>
+                    <a href="/live" class="btn btn-sm btn-primary">
+                        <i class="fas fa-video me-1"></i>Live Analysis
+                    </a>
+                    <a href="/recording" class="btn btn-sm btn-success">
+                        <i class="fas fa-upload me-1"></i>Upload Video
+                    </a>
+                </div>
             </div>
             <div class="card-body">
-                <p class="text-muted">No workouts yet. Start your first workout!</p>
-                <div class="d-flex gap-2">
-                    <a href="/live" class="btn btn-primary">Live Analysis</a>
-                    <a href="/recording" class="btn btn-success">Upload Video</a>
+                <div id="workouts-container">
+                    <div class="text-center py-5">
+                        <i class="fas fa-spinner fa-spin fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Loading workouts...</p>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/auth.js"></script>
+<script>
+// Require authentication for dashboard
+if (!Auth.requireAuth()) {
+    // Will redirect to login
+}
+
+// Load dashboard data
+async function loadDashboard() {
+    try {
+        // Get current user
+        const user = await Auth.getCurrentUser();
+        if (user) {
+            document.getElementById('user-name').textContent = user.full_name || user.username;
+        }
+        
+        // Load workout statistics
+        await loadWorkoutStats();
+        
+        // Load recent workouts
+        await loadRecentWorkouts();
+        
+    } catch (error) {
+        console.error('Failed to load dashboard:', error);
+        Auth.showAlert('Failed to load dashboard data', 'danger');
+    }
+}
+
+async function loadWorkoutStats() {
+    try {
+        const response = await Auth.ApiClient.get('/profile/api/stats');
+        
+        // Update stats cards
+        document.getElementById('total-workouts').textContent = response.total_workouts || 0;
+        document.getElementById('calories-burned').textContent = response.total_calories || 0;
+        document.getElementById('avg-accuracy').textContent = 
+            response.average_accuracy ? `${Math.round(response.average_accuracy)}%` : '0%';
+        document.getElementById('streak').textContent = response.current_streak || 0;
+        
+    } catch (error) {
+        console.error('Failed to load stats:', error);
+    }
+}
+
+async function loadRecentWorkouts() {
+    try {
+        const response = await Auth.ApiClient.get('/profile/api/workouts?limit=10');
+        const container = document.getElementById('workouts-container');
+        
+        if (!response.workouts || response.workouts.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="fas fa-dumbbell fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No workouts yet. Start your first workout!</p>
+                    <div class="d-flex gap-2 justify-content-center mt-3">
+                        <a href="/live" class="btn btn-primary">
+                            <i class="fas fa-video me-2"></i>Live Analysis
+                        </a>
+                        <a href="/recording" class="btn btn-success">
+                            <i class="fas fa-upload me-2"></i>Upload Video
+                        </a>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        // Display workouts table
+        let html = `
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Exercise</th>
+                            <th>Reps</th>
+                            <th>Accuracy</th>
+                            <th>Calories</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        response.workouts.forEach(workout => {
+            const date = new Date(workout.created_at).toLocaleDateString();
+            const accuracy = workout.average_accuracy ? `${Math.round(workout.average_accuracy)}%` : 'N/A';
+            
+            html += `
+                <tr>
+                    <td>${date}</td>
+                    <td><span class="badge bg-primary">${workout.exercise_name}</span></td>
+                    <td>${workout.total_reps || 0}</td>
+                    <td>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar ${getAccuracyColor(workout.average_accuracy)}" 
+                                 style="width: ${workout.average_accuracy || 0}%">
+                                ${accuracy}
+                            </div>
+                        </div>
+                    </td>
+                    <td>${workout.calories_burned || 0}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewWorkout('${workout._id}')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        container.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Failed to load workouts:', error);
+        document.getElementById('workouts-container').innerHTML = `
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Failed to load workouts. Please try again later.
+            </div>
+        `;
+    }
+}
+
+function getAccuracyColor(accuracy) {
+    if (!accuracy) return 'bg-secondary';
+    if (accuracy >= 80) return 'bg-success';
+    if (accuracy >= 60) return 'bg-info';
+    if (accuracy >= 40) return 'bg-warning';
+    return 'bg-danger';
+}
+
+function viewWorkout(workoutId) {
+    // TODO: Implement workout detail view
+    Auth.showAlert('Workout details coming soon!', 'info');
+}
+
+// Load dashboard on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboard();
+});
+</script>
 {% endblock %}

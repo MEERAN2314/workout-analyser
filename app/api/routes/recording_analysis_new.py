@@ -1,11 +1,11 @@
 """
 COMPLETE REWRITE - Recording Analysis with Proper Video Processing
 """
-from fastapi import APIRouter, Request, UploadFile, File, HTTPException
+from fastapi import APIRouter, Request, UploadFile, File, HTTPException, Depends
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import logging
 import os
 import uuid
@@ -14,11 +14,11 @@ import cv2
 import numpy as np
 
 from app.core.database import get_database
+from app.core.dependencies import get_current_user, get_current_user_optional
 from app.services.google_drive_storage import google_drive_storage
 from app.services.mediapipe_service import mediapipe_service
 from app.models.workout import WorkoutSession, WorkoutCreate
 from bson import ObjectId
-import hashlib
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -51,26 +51,35 @@ class AnalysisResultsResponse(BaseModel):
     analysis_timeline: List[dict]
 
 @router.get("/", response_class=HTMLResponse)
-async def recording_analysis_page(request: Request):
+async def recording_analysis_page(
+    request: Request,
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
     """Recording analysis page"""
     return templates.TemplateResponse(
         "recording_analysis_clean.html",
-        {"request": request, "title": "Recording Analysis"}
+        {
+            "request": request, 
+            "title": "Recording Analysis",
+            "user": current_user
+        }
     )
 
 @router.post("/upload-simple")
 async def upload_and_process_video(
     file: UploadFile = File(...),
     exercise_name: str = "push_ups",
-    user_id: str = "demo_user"
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
     SIMPLE UPLOAD AND PROCESS - No background tasks, direct processing
+    Requires authentication
     """
     print("\n" + "="*80)
     print("🎬 VIDEO UPLOAD STARTED")
     print(f"   File: {file.filename}")
     print(f"   Exercise: {exercise_name}")
+    print(f"   User: {current_user['username']}")
     print("="*80 + "\n")
     
     session_id = str(uuid.uuid4())
@@ -108,11 +117,9 @@ async def upload_and_process_video(
         print("💾 Step 3: Saving to database...")
         db = get_database()
         if db is not None:
-            user_object_id = ObjectId(hashlib.md5(user_id.encode()).hexdigest()[:24])
-            
             workout_session = {
                 "_id": ObjectId(session_id.replace('-', '')[:24]),
-                "user_id": user_object_id,
+                "user_id": ObjectId(current_user["_id"]),
                 "exercise_name": exercise_name,
                 "session_type": "recording",
                 "video_filename": file.filename,
@@ -130,7 +137,7 @@ async def upload_and_process_video(
             }
             
             await db.workouts.insert_one(workout_session)
-            print("✅ Results saved to database")
+            print(f"✅ Results saved to database for user {current_user['username']}")
         
         # Step 4: Generate annotated video
         print("\n🎨 Step 4: Generating annotated video...")

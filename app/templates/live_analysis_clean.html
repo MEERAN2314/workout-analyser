@@ -590,12 +590,20 @@ class WorkoutApp {
             console.log('Starting workout:', exercise);
             this.updateFeedback('Starting workout...', 'info');
             
+            // Get authentication token
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                throw new Error('Not authenticated. Please login first.');
+            }
+            
             const response = await fetch('/live/start-session', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({
-                    exercise_name: exercise,
-                    user_id: 'demo_user'
+                    exercise_name: exercise
                 })
             });
             
@@ -1166,7 +1174,19 @@ class WorkoutApp {
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Initializing Workout App...');
+    
+    // Check authentication
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        alert('Please login to use the live analysis feature.');
+        window.location.href = '/auth/login';
+        return;
+    }
+    
     window.workoutApp = new WorkoutApp();
 });
 </script>
+
+<script src="/static/js/auth.js"></script>
+
 {% endblock %}

@@ -2,18 +2,19 @@ from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect, HTTPExce
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict, Any
 import json
 import logging
 import asyncio
 import base64
 import cv2
 import numpy as np
-import hashlib
+from bson import ObjectId
 
 from app.services.websocket_manager import connection_manager, create_session, get_session, end_session
 from app.services.mediapipe_service import mediapipe_service
 from app.core.database import get_database
+from app.core.dependencies import get_current_user, get_current_user_optional
 from app.models.workout import WorkoutSession, WorkoutCreate
 
 router = APIRouter()
@@ -22,7 +23,6 @@ logger = logging.getLogger(__name__)
 
 class StartSessionRequest(BaseModel):
     exercise_name: str
-    user_id: str  # In production, this would come from JWT token
 
 class SessionResponse(BaseModel):
     session_id: str
@@ -31,58 +31,51 @@ class SessionResponse(BaseModel):
     message: str
 
 @router.get("/", response_class=HTMLResponse)
-async def live_analysis_page(request: Request):
+async def live_analysis_page(
+    request: Request, 
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
     """Live analysis page"""
     return templates.TemplateResponse(
         "live_analysis_clean.html",
-        {"request": request, "title": "Live Analysis"}
+        {
+            "request": request, 
+            "title": "Live Analysis",
+            "user": current_user
+        }
     )
 
 @router.post("/start-session", response_model=SessionResponse)
-async def start_live_session(request: StartSessionRequest):
-    """Start live analysis session"""
+async def start_live_session(
+    request: StartSessionRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Start live analysis session (requires authentication)"""
     try:
-        # Create new session
-        session_id = create_session(request.user_id, request.exercise_name)
+        # Create new session with authenticated user
+        session_id = create_session(current_user["_id"], request.exercise_name)
         
         # Store session in database
         db = get_database()
         if db is not None:
-            # Convert string user_id to ObjectId for demo purposes
-            # In production, this would come from JWT token and be a proper ObjectId
-            from bson import ObjectId
-            try:
-                # Try to convert to ObjectId if it's a valid ObjectId string
-                if ObjectId.is_valid(request.user_id):
-                    user_object_id = ObjectId(request.user_id)
-                else:
-                    # For demo users, create a consistent ObjectId based on the string
-                    import hashlib
-                    hash_object = hashlib.md5(request.user_id.encode())
-                    # Use first 24 characters of hash as ObjectId
-                    user_object_id = ObjectId(hash_object.hexdigest()[:24])
-            except:
-                # Fallback: create a new ObjectId
-                user_object_id = ObjectId()
-            
             workout_data = WorkoutCreate(
                 exercise_name=request.exercise_name,
                 session_type="live"
             )
             
             workout_session = WorkoutSession(
-                user_id=user_object_id,
-                **workout_data.dict()
+                user_id=ObjectId(current_user["_id"]),
+                **workout_data.model_dump()
             )
             
-            await db.workouts.insert_one(workout_session.dict(by_alias=True))
-            logger.info(f"Live session stored in database: {session_id}")
+            await db.workouts.insert_one(workout_session.model_dump(by_alias=True))
+            logger.info(f"Live session stored for user {current_user['username']}: {session_id}")
         
         return SessionResponse(
             session_id=session_id,
             exercise_name=request.exercise_name,
             status="started",
-            message="Live analysis session started successfully"
+            message=f"Live analysis session started for {request.exercise_name}"
         )
         
     except Exception as e:
@@ -260,11 +253,18 @@ async def handle_end_session(session_id: str, session):
         await connection_manager.send_error(session_id, "Error ending session")
 
 @router.get("/session/{session_id}/status")
-async def get_session_status(session_id: str):
-    """Get current session status"""
+async def get_session_status(
+    session_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Get current session status (requires authentication)"""
     session = get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Verify session belongs to current user
+    if session.user_id != current_user["_id"]:
+        raise HTTPException(status_code=403, detail="Access denied")
     
     is_connected = connection_manager.is_session_active(session_id)
     mediapipe_stats = mediapipe_service.get_session_stats(session_id)
@@ -280,11 +280,18 @@ async def get_session_status(session_id: str):
     }
 
 @router.post("/session/{session_id}/end")
-async def end_session_endpoint(session_id: str):
-    """End a live analysis session"""
+async def end_session_endpoint(
+    session_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """End a live analysis session (requires authentication)"""
     session = get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Verify session belongs to current user
+    if session.user_id != current_user["_id"]:
+        raise HTTPException(status_code=403, detail="Access denied")
     
     final_stats = end_session(session_id)
     mediapipe_service.reset_session(session_id)

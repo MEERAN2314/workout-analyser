@@ -9,12 +9,15 @@ from app.core.config import settings
 from app.core.database import connect_to_mongo, close_mongo_connection
 from app.api.routes import home, live_analysis, recording_analysis, auth, exercises
 from app.services.exercise_library import exercise_library
+from app.core.init_demo_user import create_demo_user
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     await connect_to_mongo()
     await exercise_library.initialize()
+    # Initialize demo user for testing
+    await create_demo_user()
     yield
     # Shutdown
     await close_mongo_connection()
@@ -50,6 +53,14 @@ from app.api.routes import recording_analysis_new
 app.include_router(recording_analysis_new.router, prefix="/recording", tags=["recording-analysis"])
 
 app.include_router(exercises.router, prefix="/exercises", tags=["exercises"])
+
+# Profile management (Phase 4)
+from app.api.routes import profile
+app.include_router(profile.router, prefix="/profile", tags=["profile"])
+
+# AI Chat (Phase 4 - Week 2)
+from app.api.routes import chat
+app.include_router(chat.router, prefix="/chat", tags=["ai-chat"])
 
 # Health check
 @app.get("/health")

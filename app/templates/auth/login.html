@@ -3,26 +3,72 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h4 class="mb-0">Login</h4>
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-sign-in-alt me-2"></i>Login to Workout Analyzer
+                </h4>
             </div>
             <div class="card-body">
+                <!-- Alert for messages -->
+                <div id="alert-container"></div>
+                
                 <form id="login-form">
                     <div class="mb-3">
-                        <label for="username" class="form-label">Username</label>
-                        <input type="text" class="form-control" id="username" required>
+                        <label for="username" class="form-label">
+                            <i class="fas fa-user me-1"></i>Username or Email
+                        </label>
+                        <input type="text" class="form-control" id="username" 
+                               placeholder="Enter your username or email" required>
                     </div>
+                    
                     <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" required>
+                        <label for="password" class="form-label">
+                            <i class="fas fa-lock me-1"></i>Password
+                        </label>
+                        <input type="password" class="form-control" id="password" 
+                               placeholder="Enter your password" required>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">Login</button>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="remember-me">
+                        <label class="form-check-label" for="remember-me">
+                            Remember me
+                        </label>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100" id="login-btn">
+                        <i class="fas fa-sign-in-alt me-2"></i>Login
+                    </button>
                 </form>
                 
-                <div class="text-center mt-3">
-                    <p>Don't have an account? <a href="/auth/register">Register here</a></p>
+                <hr>
+                
+                <div class="text-center">
+                    <p class="mb-2">Don't have an account?</p>
+                    <a href="/auth/register" class="btn btn-outline-success">
+                        <i class="fas fa-user-plus me-2"></i>Create Account
+                    </a>
                 </div>
+                
+                <div class="text-center mt-3">
+                    <small class="text-muted">
+                        <a href="#" class="text-decoration-none">Forgot Password?</a>
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Demo Credentials -->
+        <div class="card mt-3 border-info">
+            <div class="card-body">
+                <h6 class="card-title text-info">
+                    <i class="fas fa-info-circle me-1"></i>Demo Credentials
+                </h6>
+                <p class="card-text small mb-0">
+                    <strong>Username:</strong> demo_user<br>
+                    <strong>Password:</strong> demo123456
+                </p>
             </div>
         </div>
     </div>
@@ -30,10 +76,11 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="/static/js/auth.js"></script>
 <script>
-document.getElementById('login-form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    alert('Login functionality will be implemented in the next phase');
+// Initialize login form
+document.addEventListener('DOMContentLoaded', function() {
+    initializeLoginForm();
 });
 </script>
 {% endblock %}

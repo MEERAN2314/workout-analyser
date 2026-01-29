@@ -1,0 +1,458 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row h-100">
+    <!-- Chat Sessions Sidebar -->
+    <div class="col-md-3 border-end">
+        <div class="d-flex flex-column h-100">
+            <div class="p-3 border-bottom">
+                <h5 class="mb-3">
+                    <i class="fas fa-robot me-2"></i>AI Coach
+                </h5>
+                <button class="btn btn-primary w-100" onclick="startNewChat()">
+                    <i class="fas fa-plus me-2"></i>New Chat
+                </button>
+            </div>
+            
+            <div class="flex-grow-1 overflow-auto p-3">
+                <div id="chat-sessions">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
+                        <p>Loading sessions...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Chat Interface -->
+    <div class="col-md-9">
+        <div class="d-flex flex-column h-100">
+            <!-- Chat Header -->
+            <div class="p-3 border-bottom bg-light">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0" id="chat-title">
+                            <i class="fas fa-robot me-2"></i>AI Workout Coach
+                        </h5>
+                        <small class="text-muted" id="chat-subtitle">
+                            Ask me about your workouts, form, or fitness goals
+                        </small>
+                    </div>
+                    <div>
+                        <button class="btn btn-outline-danger btn-sm" onclick="deleteCurrentChat()" id="delete-chat-btn" style="display: none;">
+                            <i class="fas fa-trash me-1"></i>Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Chat Messages -->
+            <div class="flex-grow-1 overflow-auto p-3" id="chat-messages" style="height: 400px;">
+                <div class="text-center text-muted" id="welcome-message">
+                    <div class="mb-4">
+                        <i class="fas fa-robot fa-4x text-primary mb-3"></i>
+                        <h4>Welcome to Your AI Workout Coach!</h4>
+                        <p class="lead">I'm here to help you improve your workouts and reach your fitness goals.</p>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-dumbbell fa-2x text-success mb-2"></i>
+                                    <h6>Workout Analysis</h6>
+                                    <p class="small text-muted">Get insights about your recent workouts and performance</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-chart-line fa-2x text-info mb-2"></i>
+                                    <h6>Form Improvement</h6>
+                                    <p class="small text-muted">Learn how to perfect your exercise technique</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-target fa-2x text-warning mb-2"></i>
+                                    <h6>Goal Setting</h6>
+                                    <p class="small text-muted">Plan your fitness journey and track progress</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-lightbulb fa-2x text-danger mb-2"></i>
+                                    <h6>Personalized Tips</h6>
+                                    <p class="small text-muted">Get advice tailored to your fitness level and goals</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h6>Try asking me:</h6>
+                        <div class="d-flex flex-wrap justify-content-center gap-2">
+                            <button class="btn btn-outline-primary btn-sm" onclick="sendQuickMessage('How can I improve my push-up form?')">
+                                "How can I improve my push-up form?"
+                            </button>
+                            <button class="btn btn-outline-success btn-sm" onclick="sendQuickMessage('Analyze my recent workouts')">
+                                "Analyze my recent workouts"
+                            </button>
+                            <button class="btn btn-outline-info btn-sm" onclick="sendQuickMessage('What exercises should I do next?')">
+                                "What exercises should I do next?"
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Chat Input -->
+            <div class="p-3 border-top">
+                <div class="input-group">
+                    <input type="text" class="form-control" id="message-input" 
+                           placeholder="Ask me about your workouts, form, or fitness goals..." 
+                           maxlength="2000">
+                    <button class="btn btn-primary" type="button" onclick="sendMessage()" id="send-btn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div class="form-text">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        I can analyze your workout data and provide personalized fitness advice
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Context Modal -->
+<div class="modal fade" id="contextModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle me-2"></i>Context Used
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="context-content">
+                    <!-- Context information will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/auth.js"></script>
+<script>
+// Chat functionality
+let currentSessionId = null;
+let isLoading = false;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Check authentication
+    if (!Auth.requireAuth()) return;
+    
+    // Load chat sessions
+    loadChatSessions();
+    
+    // Set up message input
+    const messageInput = document.getElementById('message-input');
+    messageInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+});
+
+async function loadChatSessions() {
+    try {
+        const response = await Auth.ApiClient.get('/chat/api/sessions?limit=20');
+        
+        const sessionsHtml = response.sessions.length > 0 ? 
+            response.sessions.map(session => `
+                <div class="chat-session-item mb-2 p-2 border rounded cursor-pointer ${session.id === currentSessionId ? 'bg-primary text-white' : 'bg-light'}" 
+                     onclick="loadChatSession('${session.id}')">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1 small">${session.title}</h6>
+                            ${session.last_message ? `
+                                <p class="mb-1 small text-muted">${session.last_message.content}</p>
+                            ` : ''}
+                            <small class="text-muted">${new Date(session.updated_at).toLocaleDateString()}</small>
+                        </div>
+                        <span class="badge bg-secondary">${session.message_count}</span>
+                    </div>
+                </div>
+            `).join('') :
+            `<div class="text-center text-muted">
+                <i class="fas fa-comments fa-2x mb-2"></i>
+                <p>No chat sessions yet</p>
+                <button class="btn btn-primary btn-sm" onclick="startNewChat()">Start First Chat</button>
+            </div>`;
+        
+        document.getElementById('chat-sessions').innerHTML = sessionsHtml;
+        
+    } catch (error) {
+        document.getElementById('chat-sessions').innerHTML = `
+            <div class="text-center text-danger">
+                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                <p>Failed to load sessions</p>
+            </div>
+        `;
+    }
+}
+
+async function startNewChat() {
+    try {
+        setLoading(true);
+        
+        const response = await Auth.ApiClient.post('/chat/api/start', {});
+        
+        currentSessionId = response.session_id;
+        
+        // Update UI
+        document.getElementById('chat-title').innerHTML = `<i class="fas fa-robot me-2"></i>${response.title}`;
+        document.getElementById('delete-chat-btn').style.display = 'inline-block';
+        
+        // Clear messages and show welcome
+        const messagesContainer = document.getElementById('chat-messages');
+        messagesContainer.innerHTML = '';
+        
+        // Add welcome message
+        addMessage('assistant', response.message, new Date().toISOString());
+        
+        // Reload sessions
+        loadChatSessions();
+        
+        // Hide welcome screen
+        document.getElementById('welcome-message').style.display = 'none';
+        
+    } catch (error) {
+        Auth.showAlert('Failed to start new chat', 'danger');
+    } finally {
+        setLoading(false);
+    }
+}
+
+async function loadChatSession(sessionId) {
+    try {
+        setLoading(true);
+        
+        currentSessionId = sessionId;
+        
+        // Get session info
+        const sessionInfo = await Auth.ApiClient.get(`/chat/api/${sessionId}/info`);
+        
+        // Update UI
+        document.getElementById('chat-title').innerHTML = `<i class="fas fa-robot me-2"></i>${sessionInfo.title}`;
+        document.getElementById('delete-chat-btn').style.display = 'inline-block';
+        
+        // Load chat history
+        const history = await Auth.ApiClient.get(`/chat/api/${sessionId}/history?limit=50`);
+        
+        // Clear and populate messages
+        const messagesContainer = document.getElementById('chat-messages');
+        messagesContainer.innerHTML = '';
+        
+        history.messages.forEach(message => {
+            addMessage(message.role, message.content, message.timestamp, message.context_used);
+        });
+        
+        // Update sessions list
+        loadChatSessions();
+        
+        // Hide welcome screen
+        document.getElementById('welcome-message').style.display = 'none';
+        
+        // Scroll to bottom
+        scrollToBottom();
+        
+    } catch (error) {
+        Auth.showAlert('Failed to load chat session', 'danger');
+    } finally {
+        setLoading(false);
+    }
+}
+
+async function sendMessage() {
+    const messageInput = document.getElementById('message-input');
+    const message = messageInput.value.trim();
+    
+    if (!message || isLoading) return;
+    
+    if (!currentSessionId) {
+        await startNewChat();
+        if (!currentSessionId) return;
+    }
+    
+    try {
+        setLoading(true);
+        
+        // Add user message to UI
+        addMessage('user', message, new Date().toISOString());
+        messageInput.value = '';
+        
+        // Send to API
+        const response = await Auth.ApiClient.post(`/chat/api/${currentSessionId}/message`, {
+            content: message
+        });
+        
+        // Add AI response
+        addMessage('assistant', response.response, response.timestamp, response.context_used);
+        
+        // Update sessions list
+        loadChatSessions();
+        
+    } catch (error) {
+        Auth.showAlert('Failed to send message', 'danger');
+        addMessage('assistant', 'Sorry, I encountered an error processing your message. Please try again.', new Date().toISOString());
+    } finally {
+        setLoading(false);
+    }
+}
+
+async function sendQuickMessage(message) {
+    const messageInput = document.getElementById('message-input');
+    messageInput.value = message;
+    await sendMessage();
+}
+
+function addMessage(role, content, timestamp, contextUsed = null) {
+    const messagesContainer = document.getElementById('chat-messages');
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message mb-3 ${role === 'user' ? 'text-end' : ''}`;
+    
+    const time = new Date(timestamp).toLocaleTimeString();
+    
+    messageDiv.innerHTML = `
+        <div class="d-inline-block max-width-75 ${role === 'user' ? 'bg-primary text-white' : 'bg-light'} rounded p-3">
+            <div class="d-flex align-items-start">
+                ${role === 'assistant' ? '<i class="fas fa-robot me-2 mt-1"></i>' : ''}
+                <div class="flex-grow-1">
+                    <div class="message-content">${formatMessage(content)}</div>
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <small class="text-muted">${time}</small>
+                        ${contextUsed ? `
+                            <button class="btn btn-link btn-sm p-0 text-muted" onclick="showContext('${JSON.stringify(contextUsed).replace(/'/g, "\\'")}')">
+                                <i class="fas fa-info-circle"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    messagesContainer.appendChild(messageDiv);
+    scrollToBottom();
+}
+
+function formatMessage(content) {
+    // Basic markdown-like formatting
+    return content
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/\n/g, '<br>');
+}
+
+function showContext(contextJson) {
+    try {
+        const context = JSON.parse(contextJson);
+        
+        let contextHtml = '';
+        
+        if (context.user_context) {
+            contextHtml += `
+                <h6><i class="fas fa-user me-2"></i>User Profile</h6>
+                <pre class="bg-light p-2 rounded">${context.user_context}</pre>
+            `;
+        }
+        
+        if (context.workout_context) {
+            contextHtml += `
+                <h6 class="mt-3"><i class="fas fa-dumbbell me-2"></i>Recent Workouts</h6>
+                <pre class="bg-light p-2 rounded">${context.workout_context}</pre>
+            `;
+        }
+        
+        document.getElementById('context-content').innerHTML = contextHtml || '<p>No context information available.</p>';
+        
+        new bootstrap.Modal(document.getElementById('contextModal')).show();
+        
+    } catch (error) {
+        console.error('Error showing context:', error);
+    }
+}
+
+async function deleteCurrentChat() {
+    if (!currentSessionId) return;
+    
+    if (!confirm('Are you sure you want to delete this chat session? This action cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        await Auth.ApiClient.delete(`/chat/api/${currentSessionId}`);
+        
+        // Reset UI
+        currentSessionId = null;
+        document.getElementById('chat-title').innerHTML = '<i class="fas fa-robot me-2"></i>AI Workout Coach';
+        document.getElementById('delete-chat-btn').style.display = 'none';
+        document.getElementById('chat-messages').innerHTML = '';
+        document.getElementById('welcome-message').style.display = 'block';
+        
+        // Reload sessions
+        loadChatSessions();
+        
+        Auth.showAlert('Chat session deleted', 'success');
+        
+    } catch (error) {
+        Auth.showAlert('Failed to delete chat session', 'danger');
+    }
+}
+
+function setLoading(loading) {
+    isLoading = loading;
+    const sendBtn = document.getElementById('send-btn');
+    const messageInput = document.getElementById('message-input');
+    
+    if (loading) {
+        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        sendBtn.disabled = true;
+        messageInput.disabled = true;
+    } else {
+        sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+        sendBtn.disabled = false;
+        messageInput.disabled = false;
+    }
+}
+
+function scrollToBottom() {
+    const messagesContainer = document.getElementById('chat-messages');
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// CSS for max-width
+const style = document.createElement('style');
+style.textContent = `
+    .max-width-75 { max-width: 75%; }
+    .cursor-pointer { cursor: pointer; }
+    .chat-session-item:hover { background-color: #f8f9fa !important; }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

@@ -3,69 +3,194 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h4 class="mb-0">Register</h4>
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-user-plus me-2"></i>Create Your Account
+                </h4>
             </div>
             <div class="card-body">
-                <form id="register-form">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="username" class="form-label">Username</label>
-                            <input type="text" class="form-control" id="username" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="email" class="form-label">Email</label>
-                            <input type="email" class="form-control" id="email" required>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="password" class="form-label">Password</label>
-                            <input type="password" class="form-control" id="password" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="confirm-password" class="form-label">Confirm Password</label>
-                            <input type="password" class="form-control" id="confirm-password" required>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="full-name" class="form-label">Full Name (Optional)</label>
-                        <input type="text" class="form-control" id="full-name">
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <label for="age" class="form-label">Age</label>
-                            <input type="number" class="form-control" id="age" min="13" max="120">
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="height" class="form-label">Height (cm)</label>
-                            <input type="number" class="form-control" id="height" step="0.1">
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="weight" class="form-label">Weight (kg)</label>
-                            <input type="number" class="form-control" id="weight" step="0.1">
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="fitness-level" class="form-label">Fitness Level</label>
-                        <select class="form-select" id="fitness-level">
-                            <option value="">Select fitness level</option>
-                            <option value="beginner">Beginner</option>
-                            <option value="intermediate">Intermediate</option>
-                            <option value="advanced">Advanced</option>
-                        </select>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary w-100">Register</button>
-                </form>
+                <!-- Alert for messages -->
+                <div id="alert-container"></div>
                 
-                <div class="text-center mt-3">
-                    <p>Already have an account? <a href="/auth/login">Login here</a></p>
+                <!-- Multi-step form -->
+                <div id="registration-steps">
+                    <!-- Step 1: Basic Info -->
+                    <div class="step" id="step-1">
+                        <h5 class="mb-3">
+                            <i class="fas fa-user me-2"></i>Basic Information
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="username" class="form-label">
+                                    <i class="fas fa-at me-1"></i>Username *
+                                </label>
+                                <input type="text" class="form-control" id="username" 
+                                       placeholder="Choose a unique username" required>
+                                <div class="form-text">3-50 characters, letters, numbers, and underscore only</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="email" class="form-label">
+                                    <i class="fas fa-envelope me-1"></i>Email *
+                                </label>
+                                <input type="email" class="form-control" id="email" 
+                                       placeholder="your@email.com" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="password" class="form-label">
+                                    <i class="fas fa-lock me-1"></i>Password *
+                                </label>
+                                <input type="password" class="form-control" id="password" 
+                                       placeholder="Minimum 8 characters" required>
+                                <div class="form-text">Maximum 72 bytes (UTF-8 encoded)</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="confirm-password" class="form-label">
+                                    <i class="fas fa-lock me-1"></i>Confirm Password *
+                                </label>
+                                <input type="password" class="form-control" id="confirm-password" 
+                                       placeholder="Repeat your password" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="full-name" class="form-label">
+                                <i class="fas fa-id-card me-1"></i>Full Name
+                            </label>
+                            <input type="text" class="form-control" id="full-name" 
+                                   placeholder="Your full name (optional)">
+                        </div>
+                        
+                        <button type="button" class="btn btn-primary" onclick="nextStep(2)">
+                            Next: Profile Info <i class="fas fa-arrow-right ms-2"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Step 2: Profile Info -->
+                    <div class="step d-none" id="step-2">
+                        <h5 class="mb-3">
+                            <i class="fas fa-user-cog me-2"></i>Profile Information
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="age" class="form-label">
+                                    <i class="fas fa-birthday-cake me-1"></i>Age
+                                </label>
+                                <input type="number" class="form-control" id="age" 
+                                       min="13" max="120" placeholder="Your age">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="height" class="form-label">
+                                    <i class="fas fa-ruler-vertical me-1"></i>Height (cm)
+                                </label>
+                                <input type="number" class="form-control" id="height" 
+                                       step="0.1" placeholder="170.5">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="weight" class="form-label">
+                                    <i class="fas fa-weight me-1"></i>Weight (kg)
+                                </label>
+                                <input type="number" class="form-control" id="weight" 
+                                       step="0.1" placeholder="70.0">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="fitness-level" class="form-label">
+                                <i class="fas fa-dumbbell me-1"></i>Fitness Level
+                            </label>
+                            <select class="form-select" id="fitness-level">
+                                <option value="">Select your fitness level</option>
+                                <option value="beginner">Beginner - Just starting out</option>
+                                <option value="intermediate">Intermediate - Regular exercise</option>
+                                <option value="advanced">Advanced - Experienced athlete</option>
+                            </select>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-outline-secondary" onclick="prevStep(1)">
+                                <i class="fas fa-arrow-left me-2"></i>Back
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="nextStep(3)">
+                                Next: Goals <i class="fas fa-arrow-right ms-2"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 3: Goals -->
+                    <div class="step d-none" id="step-3">
+                        <h5 class="mb-3">
+                            <i class="fas fa-target me-2"></i>Fitness Goals
+                        </h5>
+                        
+                        <p class="text-muted mb-3">Select your fitness goals (optional):</p>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" value="weight_loss" id="goal-weight-loss">
+                                    <label class="form-check-label" for="goal-weight-loss">
+                                        <i class="fas fa-weight-hanging me-2"></i>Weight Loss
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" value="muscle_gain" id="goal-muscle-gain">
+                                    <label class="form-check-label" for="goal-muscle-gain">
+                                        <i class="fas fa-dumbbell me-2"></i>Muscle Gain
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" value="endurance" id="goal-endurance">
+                                    <label class="form-check-label" for="goal-endurance">
+                                        <i class="fas fa-running me-2"></i>Endurance
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" value="strength" id="goal-strength">
+                                    <label class="form-check-label" for="goal-strength">
+                                        <i class="fas fa-fist-raised me-2"></i>Strength
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" value="flexibility" id="goal-flexibility">
+                                    <label class="form-check-label" for="goal-flexibility">
+                                        <i class="fas fa-child me-2"></i>Flexibility
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" value="general_fitness" id="goal-general">
+                                    <label class="form-check-label" for="goal-general">
+                                        <i class="fas fa-heart me-2"></i>General Fitness
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-outline-secondary" onclick="prevStep(2)">
+                                <i class="fas fa-arrow-left me-2"></i>Back
+                            </button>
+                            <button type="button" class="btn btn-success" id="register-btn" onclick="submitRegistration()">
+                                <i class="fas fa-user-plus me-2"></i>Create Account
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr class="mt-4">
+                
+                <div class="text-center">
+                    <p class="mb-0">Already have an account?</p>
+                    <a href="/auth/login" class="btn btn-outline-primary">
+                        <i class="fas fa-sign-in-alt me-2"></i>Login Here
+                    </a>
                 </div>
             </div>
         </div>
@@ -74,19 +199,96 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="/static/js/auth.js"></script>
 <script>
-document.getElementById('register-form').addEventListener('submit', function(e) {
-    e.preventDefault();
+// Multi-step form navigation
+function nextStep(step) {
+    // Validate current step
+    if (step === 2 && !validateStep1()) return;
+    if (step === 3 && !validateStep2()) return;
     
+    // Hide all steps
+    document.querySelectorAll('.step').forEach(s => s.classList.add('d-none'));
+    
+    // Show target step
+    document.getElementById(`step-${step}`).classList.remove('d-none');
+}
+
+function prevStep(step) {
+    // Hide all steps
+    document.querySelectorAll('.step').forEach(s => s.classList.add('d-none'));
+    
+    // Show target step
+    document.getElementById(`step-${step}`).classList.remove('d-none');
+}
+
+function validateStep1() {
+    const username = document.getElementById('username').value;
+    const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
     const confirmPassword = document.getElementById('confirm-password').value;
     
-    if (password !== confirmPassword) {
-        alert('Passwords do not match');
-        return;
+    if (!username || !email || !password || !confirmPassword) {
+        showAlert('Please fill in all required fields', 'danger');
+        return false;
     }
     
-    alert('Registration functionality will be implemented in the next phase');
+    if (password !== confirmPassword) {
+        showAlert('Passwords do not match', 'danger');
+        return false;
+    }
+    
+    if (password.length < 8) {
+        showAlert('Password must be at least 8 characters', 'danger');
+        return false;
+    }
+    
+    // Check byte length (bcrypt has 72 byte limit, not character limit)
+    const passwordBytes = new TextEncoder().encode(password).length;
+    if (passwordBytes > 72) {
+        showAlert(`Password is too long (${passwordBytes} bytes). Maximum is 72 bytes. Try a shorter password or use fewer special characters.`, 'danger');
+        return false;
+    }
+    
+    return true;
+}
+
+function validateStep2() {
+    // Optional validation for step 2
+    return true;
+}
+
+function submitRegistration() {
+    if (!validateStep1()) return;
+    
+    // Collect form data
+    const formData = {
+        username: document.getElementById('username').value,
+        email: document.getElementById('email').value,
+        password: document.getElementById('password').value,
+        full_name: document.getElementById('full-name').value,
+        age: parseInt(document.getElementById('age').value) || null,
+        height: parseFloat(document.getElementById('height').value) || null,
+        weight: parseFloat(document.getElementById('weight').value) || null,
+        fitness_level: document.getElementById('fitness-level').value || 'beginner',
+        goals: getSelectedGoals()
+    };
+    
+    // Submit registration
+    registerUser(formData);
+}
+
+function getSelectedGoals() {
+    const goals = [];
+    document.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
+        goals.push(checkbox.value);
+    });
+    return goals;
+}
+
+// Initialize registration form
+document.addEventListener('DOMContentLoaded', function() {
+    initializeRegistrationForm();
 });
 </script>
 {% endblock %}

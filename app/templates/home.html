@@ -1,10 +1,32 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12 text-center mb-5">
-        <h1 class="display-4">Welcome to Workout Analyzer</h1>
+<!-- Welcome Section -->
+<div class="row mb-4">
+    <div class="col-12 text-center">
+        <h1 class="display-4">
+            <i class="fas fa-dumbbell me-3"></i>Welcome to Workout Analyzer
+        </h1>
         <p class="lead">AI-powered workout analysis with real-time feedback</p>
+        
+        <!-- Authenticated User Welcome -->
+        <div class="auth-required" style="display: none;">
+            <div class="alert alert-info mt-3">
+                <i class="fas fa-user-circle me-2"></i>
+                Welcome back, <strong class="user-info">User</strong>! 
+                <a href="/dashboard" class="alert-link">View your dashboard</a>
+            </div>
+        </div>
+        
+        <!-- Guest User CTA -->
+        <div class="guest-only mt-3">
+            <a href="/auth/register" class="btn btn-primary btn-lg me-2">
+                <i class="fas fa-user-plus me-2"></i>Get Started
+            </a>
+            <a href="/auth/login" class="btn btn-outline-primary btn-lg">
+                <i class="fas fa-sign-in-alt me-2"></i>Login
+            </a>
+        </div>
     </div>
 </div>
 
@@ -21,12 +43,14 @@
                     Perfect for guided workouts and immediate corrections.
                 </p>
                 <ul class="list-unstyled text-start">
-                    <li>✓ Real-time rep counting</li>
-                    <li>✓ Live form feedback</li>
-                    <li>✓ Audio coaching</li>
-                    <li>✓ Instant results</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Real-time rep counting</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Live form feedback</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Audio coaching</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Instant results</li>
                 </ul>
-                <a href="/live" class="btn btn-primary btn-lg">Start Live Analysis</a>
+                <a href="/live" class="btn btn-primary btn-lg">
+                    <i class="fas fa-play me-2"></i>Start Live Analysis
+                </a>
             </div>
         </div>
     </div>
@@ -43,12 +67,49 @@
                     Get in-depth insights and improvement suggestions.
                 </p>
                 <ul class="list-unstyled text-start">
-                    <li>✓ Detailed form analysis</li>
-                    <li>✓ Mistake identification</li>
-                    <li>✓ PDF reports</li>
-                    <li>✓ AI consultation</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Detailed form analysis</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Mistake identification</li>
+                    <li><i class="fas fa-check text-success me-2"></i>PDF reports</li>
+                    <li><i class="fas fa-check text-success me-2"></i>AI consultation</li>
                 </ul>
-                <a href="/recording" class="btn btn-success btn-lg">Upload Video</a>
+                <a href="/recording" class="btn btn-success btn-lg">
+                    <i class="fas fa-cloud-upload-alt me-2"></i>Upload Video
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Phase 4 Features -->
+<div class="row mt-4 auth-required" style="display: none;">
+    <div class="col-md-6 mb-4">
+        <div class="card border-primary">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-chart-line text-primary me-2"></i>Track Your Progress
+                </h5>
+                <p class="card-text">
+                    View your workout history, track improvements, and monitor your fitness journey.
+                </p>
+                <a href="/dashboard" class="btn btn-outline-primary">
+                    <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card border-info">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-robot text-info me-2"></i>AI Workout Coach
+                </h5>
+                <p class="card-text">
+                    Chat with our AI coach for personalized workout advice and form tips.
+                </p>
+                <a href="/chat" class="btn btn-outline-info">
+                    <i class="fas fa-comments me-2"></i>Start Chat
+                </a>
             </div>
         </div>
     </div>
@@ -58,25 +119,27 @@
     <div class="col-12">
         <div class="card bg-light">
             <div class="card-body">
-                <h4 class="card-title">How It Works</h4>
+                <h4 class="card-title text-center mb-4">
+                    <i class="fas fa-info-circle me-2"></i>How It Works
+                </h4>
                 <div class="row">
                     <div class="col-md-4 text-center">
                         <div class="mb-3">
-                            <i class="fas fa-dumbbell fa-2x text-primary"></i>
+                            <i class="fas fa-dumbbell fa-3x text-primary"></i>
                         </div>
                         <h5>1. Choose Exercise</h5>
                         <p>Select from our library of supported exercises or let our AI detect it automatically.</p>
                     </div>
                     <div class="col-md-4 text-center">
                         <div class="mb-3">
-                            <i class="fas fa-eye fa-2x text-primary"></i>
+                            <i class="fas fa-eye fa-3x text-primary"></i>
                         </div>
                         <h5>2. AI Analysis</h5>
                         <p>Our MediaPipe-powered AI analyzes your form, counts reps, and identifies areas for improvement.</p>
                     </div>
                     <div class="col-md-4 text-center">
                         <div class="mb-3">
-                            <i class="fas fa-chart-line fa-2x text-primary"></i>
+                            <i class="fas fa-chart-line fa-3x text-primary"></i>
                         </div>
                         <h5>3. Get Results</h5>
                         <p>Receive detailed feedback, performance metrics, and personalized recommendations.</p>
@@ -89,5 +152,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://kit.fontawesome.com/your-fontawesome-kit.js" crossorigin="anonymous"></script>
+<script src="/static/js/auth.js"></script>
 {% endblock %}

@@ -1,0 +1,506 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <!-- Profile Info -->
+    <div class="col-md-4">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-user me-2"></i>Profile Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="profile-info">
+                    <!-- Profile data will be loaded here -->
+                    <div class="text-center">
+                        <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
+                        <p class="mt-2 text-muted">Loading profile...</p>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                        <i class="fas fa-edit me-2"></i>Edit Profile
+                    </button>
+                    <button class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                        <i class="fas fa-key me-2"></i>Change Password
+                    </button>
+                    <button class="btn btn-outline-danger logout-btn">
+                        <i class="fas fa-sign-out-alt me-2"></i>Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Statistics -->
+    <div class="col-md-8">
+        <div class="row">
+            <!-- Quick Stats -->
+            <div class="col-12 mb-4">
+                <div class="card shadow">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-line me-2"></i>Workout Statistics
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="stats-container">
+                            <!-- Stats will be loaded here -->
+                            <div class="text-center">
+                                <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
+                                <p class="mt-2 text-muted">Loading statistics...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Workouts -->
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-history me-2"></i>Recent Workouts
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="recent-workouts">
+                            <!-- Recent workouts will be loaded here -->
+                            <div class="text-center">
+                                <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
+                                <p class="mt-2 text-muted">Loading workouts...</p>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center mt-3">
+                            <a href="/profile/api/workouts" class="btn btn-outline-info">
+                                <i class="fas fa-list me-2"></i>View All Workouts
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Profile Modal -->
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Edit Profile
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="edit-alert-container"></div>
+                
+                <form id="edit-profile-form">
+                    <div class="mb-3">
+                        <label for="edit-full-name" class="form-label">Full Name</label>
+                        <input type="text" class="form-control" id="edit-full-name">
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="edit-age" class="form-label">Age</label>
+                            <input type="number" class="form-control" id="edit-age" min="13" max="120">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="edit-height" class="form-label">Height (cm)</label>
+                            <input type="number" class="form-control" id="edit-height" step="0.1">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="edit-weight" class="form-label">Weight (kg)</label>
+                            <input type="number" class="form-control" id="edit-weight" step="0.1">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit-fitness-level" class="form-label">Fitness Level</label>
+                        <select class="form-select" id="edit-fitness-level">
+                            <option value="beginner">Beginner</option>
+                            <option value="intermediate">Intermediate</option>
+                            <option value="advanced">Advanced</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Fitness Goals</label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="weight_loss" id="edit-goal-weight-loss">
+                                    <label class="form-check-label" for="edit-goal-weight-loss">Weight Loss</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="muscle_gain" id="edit-goal-muscle-gain">
+                                    <label class="form-check-label" for="edit-goal-muscle-gain">Muscle Gain</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="endurance" id="edit-goal-endurance">
+                                    <label class="form-check-label" for="edit-goal-endurance">Endurance</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="strength" id="edit-goal-strength">
+                                    <label class="form-check-label" for="edit-goal-strength">Strength</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="flexibility" id="edit-goal-flexibility">
+                                    <label class="form-check-label" for="edit-goal-flexibility">Flexibility</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="general_fitness" id="edit-goal-general">
+                                    <label class="form-check-label" for="edit-goal-general">General Fitness</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="save-profile-btn" onclick="saveProfile()">
+                    <i class="fas fa-save me-2"></i>Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-key me-2"></i>Change Password
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="password-alert-container"></div>
+                
+                <form id="change-password-form">
+                    <div class="mb-3">
+                        <label for="current-password" class="form-label">Current Password</label>
+                        <input type="password" class="form-control" id="current-password" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="new-password" class="form-label">New Password</label>
+                        <input type="password" class="form-control" id="new-password" required>
+                        <div class="form-text">Minimum 8 characters</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="confirm-new-password" class="form-label">Confirm New Password</label>
+                        <input type="password" class="form-control" id="confirm-new-password" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="change-password-btn" onclick="changeUserPassword()">
+                    <i class="fas fa-key me-2"></i>Change Password
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/auth.js"></script>
+<script>
+// Profile page functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Check authentication
+    if (!Auth.requireAuth()) return;
+    
+    // Load profile data
+    loadProfileData();
+    loadUserStats();
+    loadRecentWorkouts();
+});
+
+async function loadProfileData() {
+    try {
+        const user = await Auth.getCurrentUser();
+        if (!user) return;
+        
+        // Display profile info
+        const profileHtml = `
+            <div class="text-center mb-3">
+                <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center" 
+                     style="width: 80px; height: 80px; font-size: 2rem;">
+                    <i class="fas fa-user"></i>
+                </div>
+            </div>
+            
+            <h5 class="text-center mb-3">${user.full_name || user.username}</h5>
+            
+            <div class="row text-center mb-3">
+                <div class="col">
+                    <small class="text-muted">Username</small>
+                    <div class="fw-bold">${user.username}</div>
+                </div>
+                <div class="col">
+                    <small class="text-muted">Level</small>
+                    <div class="fw-bold text-capitalize">${user.fitness_level}</div>
+                </div>
+            </div>
+            
+            ${user.age || user.height || user.weight ? `
+            <div class="row text-center mb-3">
+                ${user.age ? `<div class="col"><small class="text-muted">Age</small><div>${user.age}</div></div>` : ''}
+                ${user.height ? `<div class="col"><small class="text-muted">Height</small><div>${user.height} cm</div></div>` : ''}
+                ${user.weight ? `<div class="col"><small class="text-muted">Weight</small><div>${user.weight} kg</div></div>` : ''}
+            </div>
+            ` : ''}
+            
+            ${user.goals && user.goals.length > 0 ? `
+            <div class="mb-3">
+                <small class="text-muted">Goals</small>
+                <div class="mt-1">
+                    ${user.goals.map(goal => `<span class="badge bg-secondary me-1">${goal.replace('_', ' ')}</span>`).join('')}
+                </div>
+            </div>
+            ` : ''}
+            
+            <div class="text-center">
+                <small class="text-muted">Member since ${new Date(user.created_at).toLocaleDateString()}</small>
+            </div>
+        `;
+        
+        document.getElementById('profile-info').innerHTML = profileHtml;
+        
+        // Populate edit form
+        populateEditForm(user);
+        
+    } catch (error) {
+        document.getElementById('profile-info').innerHTML = `
+            <div class="text-center text-danger">
+                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                <p>Failed to load profile</p>
+            </div>
+        `;
+    }
+}
+
+async function loadUserStats() {
+    try {
+        const response = await Auth.ApiClient.get('/profile/api/stats');
+        
+        const statsHtml = `
+            <div class="row text-center">
+                <div class="col-md-3 mb-3">
+                    <div class="bg-primary text-white p-3 rounded">
+                        <i class="fas fa-dumbbell fa-2x mb-2"></i>
+                        <h4 class="mb-0">${response.total_workouts}</h4>
+                        <small>Total Workouts</small>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="bg-success text-white p-3 rounded">
+                        <i class="fas fa-repeat fa-2x mb-2"></i>
+                        <h4 class="mb-0">${response.total_reps}</h4>
+                        <small>Total Reps</small>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="bg-warning text-white p-3 rounded">
+                        <i class="fas fa-fire fa-2x mb-2"></i>
+                        <h4 class="mb-0">${response.total_calories}</h4>
+                        <small>Calories Burned</small>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="bg-info text-white p-3 rounded">
+                        <i class="fas fa-chart-line fa-2x mb-2"></i>
+                        <h4 class="mb-0">${response.average_accuracy}%</h4>
+                        <small>Avg Accuracy</small>
+                    </div>
+                </div>
+            </div>
+            
+            ${Object.keys(response.exercise_breakdown).length > 0 ? `
+            <div class="mt-4">
+                <h6>Exercise Breakdown</h6>
+                <div class="row">
+                    ${Object.entries(response.exercise_breakdown).map(([exercise, data]) => `
+                        <div class="col-md-4 mb-2">
+                            <div class="border rounded p-2">
+                                <strong class="text-capitalize">${exercise.replace('_', ' ')}</strong>
+                                <div class="small text-muted">
+                                    ${data.count} sessions • ${data.total_reps} reps • ${data.average_accuracy.toFixed(1)}% accuracy
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            ` : ''}
+        `;
+        
+        document.getElementById('stats-container').innerHTML = statsHtml;
+        
+    } catch (error) {
+        document.getElementById('stats-container').innerHTML = `
+            <div class="text-center text-muted">
+                <i class="fas fa-chart-line fa-2x mb-2"></i>
+                <p>No workout data available yet</p>
+                <a href="/live" class="btn btn-primary btn-sm">Start Your First Workout</a>
+            </div>
+        `;
+    }
+}
+
+async function loadRecentWorkouts() {
+    try {
+        const response = await Auth.ApiClient.get('/profile/api/recent-workouts?limit=5');
+        
+        if (response.workouts.length === 0) {
+            document.getElementById('recent-workouts').innerHTML = `
+                <div class="text-center text-muted">
+                    <i class="fas fa-dumbbell fa-2x mb-2"></i>
+                    <p>No workouts yet</p>
+                    <div>
+                        <a href="/live" class="btn btn-primary btn-sm me-2">Live Analysis</a>
+                        <a href="/recording" class="btn btn-success btn-sm">Upload Video</a>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        const workoutsHtml = response.workouts.map(workout => `
+            <div class="border rounded p-3 mb-2">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="mb-1 text-capitalize">${workout.exercise_name.replace('_', ' ')}</h6>
+                        <div class="text-muted small">
+                            <i class="fas fa-calendar me-1"></i>
+                            ${new Date(workout.created_at).toLocaleDateString()}
+                        </div>
+                    </div>
+                    <span class="badge bg-${workout.session_type === 'live' ? 'primary' : 'success'}">
+                        ${workout.session_type}
+                    </span>
+                </div>
+                
+                <div class="row mt-2 text-center">
+                    <div class="col">
+                        <small class="text-muted">Reps</small>
+                        <div class="fw-bold">${workout.total_reps || 0}</div>
+                    </div>
+                    <div class="col">
+                        <small class="text-muted">Accuracy</small>
+                        <div class="fw-bold">${((workout.accuracy_score || 0) * 100).toFixed(1)}%</div>
+                    </div>
+                    <div class="col">
+                        <small class="text-muted">Calories</small>
+                        <div class="fw-bold">${(workout.calories_burned || 0).toFixed(1)}</div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        document.getElementById('recent-workouts').innerHTML = workoutsHtml;
+        
+    } catch (error) {
+        document.getElementById('recent-workouts').innerHTML = `
+            <div class="text-center text-danger">
+                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                <p>Failed to load workouts</p>
+            </div>
+        `;
+    }
+}
+
+function populateEditForm(user) {
+    document.getElementById('edit-full-name').value = user.full_name || '';
+    document.getElementById('edit-age').value = user.age || '';
+    document.getElementById('edit-height').value = user.height || '';
+    document.getElementById('edit-weight').value = user.weight || '';
+    document.getElementById('edit-fitness-level').value = user.fitness_level || 'beginner';
+    
+    // Set goals checkboxes
+    const goals = user.goals || [];
+    document.querySelectorAll('#editProfileModal input[type="checkbox"]').forEach(checkbox => {
+        checkbox.checked = goals.includes(checkbox.value);
+    });
+}
+
+async function saveProfile() {
+    try {
+        Auth.setLoading('save-profile-btn', true);
+        
+        // Collect form data
+        const formData = {
+            full_name: document.getElementById('edit-full-name').value,
+            age: parseInt(document.getElementById('edit-age').value) || null,
+            height: parseFloat(document.getElementById('edit-height').value) || null,
+            weight: parseFloat(document.getElementById('edit-weight').value) || null,
+            fitness_level: document.getElementById('edit-fitness-level').value,
+            goals: Array.from(document.querySelectorAll('#editProfileModal input[type="checkbox"]:checked')).map(cb => cb.value)
+        };
+        
+        await Auth.updateProfile(formData);
+        
+        // Close modal and reload profile
+        bootstrap.Modal.getInstance(document.getElementById('editProfileModal')).hide();
+        loadProfileData();
+        
+    } catch (error) {
+        Auth.showAlert(error.message || 'Failed to update profile', 'danger', 'edit-alert-container');
+    } finally {
+        Auth.setLoading('save-profile-btn', false);
+    }
+}
+
+async function changeUserPassword() {
+    try {
+        const currentPassword = document.getElementById('current-password').value;
+        const newPassword = document.getElementById('new-password').value;
+        const confirmPassword = document.getElementById('confirm-new-password').value;
+        
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            Auth.showAlert('Please fill in all fields', 'warning', 'password-alert-container');
+            return;
+        }
+        
+        if (newPassword !== confirmPassword) {
+            Auth.showAlert('New passwords do not match', 'danger', 'password-alert-container');
+            return;
+        }
+        
+        if (newPassword.length < 8) {
+            Auth.showAlert('New password must be at least 8 characters', 'danger', 'password-alert-container');
+            return;
+        }
+        
+        Auth.setLoading('change-password-btn', true);
+        
+        await Auth.changePassword(currentPassword, newPassword);
+        
+        // Close modal and clear form
+        bootstrap.Modal.getInstance(document.getElementById('changePasswordModal')).hide();
+        document.getElementById('change-password-form').reset();
+        
+    } catch (error) {
+        Auth.showAlert(error.message || 'Failed to change password', 'danger', 'password-alert-container');
+    } finally {
+        Auth.setLoading('change-password-btn', false);
+    }
+}
+</script>
+{% endblock %}
