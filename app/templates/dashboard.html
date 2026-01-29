@@ -256,9 +256,233 @@ function getAccuracyColor(accuracy) {
     return 'bg-danger';
 }
 
-function viewWorkout(workoutId) {
-    Auth.showAlert('Workout details coming soon!', 'info');
+async function viewWorkout(workoutId) {
+    try {
+        console.log('📊 Loading workout details:', workoutId);
+        
+        // Show loading state
+        Auth.showAlert('Loading workout details...', 'info');
+        
+        // Fetch workout details
+        const response = await Auth.ApiClient.get(`/recording/results/${workoutId}`);
+        
+        console.log('✅ Workout data:', response);
+        
+        // Check if annotated video exists
+        if (response.annotated_video_url) {
+            // Open annotated video in modal
+            showWorkoutVideoModal(workoutId, response);
+        } else {
+            // Show workout details without video
+            showWorkoutDetailsModal(workoutId, response);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error loading workout:', error);
+        Auth.showAlert('Failed to load workout details', 'danger');
+    }
 }
+
+function showWorkoutVideoModal(workoutId, workoutData) {
+    // Create modal HTML
+    const modalHtml = `
+        <div class="modal fade" id="workoutVideoModal" tabindex="-1">
+            <div class="modal-dialog modal-xl modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg">
+                    <div class="modal-header bg-gradient text-white border-0">
+                        <h5 class="modal-title">
+                            <i class="fas fa-video me-2"></i>
+                            ${workoutData.exercise_name.replace('_', ' ').toUpperCase()} - Analysis
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <!-- Stats Overview -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-3">
+                                <div class="text-center p-3 bg-light rounded">
+                                    <div class="fs-3 fw-bold text-primary">${workoutData.total_reps}</div>
+                                    <small class="text-muted">Total Reps</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center p-3 bg-light rounded">
+                                    <div class="fs-3 fw-bold text-success">${workoutData.correct_reps}</div>
+                                    <small class="text-muted">Correct Reps</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center p-3 bg-light rounded">
+                                    <div class="fs-3 fw-bold text-info">${Math.round(workoutData.accuracy_score * 100)}%</div>
+                                    <small class="text-muted">Accuracy</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center p-3 bg-light rounded">
+                                    <div class="fs-3 fw-bold text-warning">${Math.round(workoutData.calories_burned || 0)}</div>
+                                    <small class="text-muted">Calories</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Video Player -->
+                        <div class="alert alert-success border-0 mb-3">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>Annotated Video:</strong> This video includes skeleton overlay, rep counters, and real-time form feedback.
+                        </div>
+                        <video controls autoplay class="w-100 rounded shadow" style="max-height: 500px; background: #000;">
+                            <source src="/recording/annotated-video/${workoutId}" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        
+                        <!-- Feedback Section -->
+                        ${workoutData.form_feedback && workoutData.form_feedback.length > 0 ? `
+                            <div class="mt-4">
+                                <h6 class="fw-bold mb-3">
+                                    <i class="fas fa-comments me-2"></i>Form Feedback
+                                </h6>
+                                <div class="d-flex flex-column gap-2">
+                                    ${workoutData.form_feedback.map(feedback => `
+                                        <div class="alert alert-info border-0 mb-0 py-2">
+                                            <i class="fas fa-info-circle me-2"></i>${feedback}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="modal-footer border-0 bg-light">
+                        <a href="/recording/annotated-video/${workoutId}" download="workout_${workoutId}.mp4" class="btn btn-success hover-lift">
+                            <i class="fas fa-download me-2"></i>Download Video
+                        </a>
+                        <a href="/recording/report/${workoutId}" class="btn btn-primary hover-lift">
+                            <i class="fas fa-file-pdf me-2"></i>Download Report
+                        </a>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('workoutVideoModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('workoutVideoModal'));
+    modal.show();
+    
+    // Cleanup on close
+    document.getElementById('workoutVideoModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+
+function showWorkoutDetailsModal(workoutId, workoutData) {
+    // Fallback for workouts without annotated video
+    const modalHtml = `
+        <div class="modal fade" id="workoutDetailsModal" tabindex="-1">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg">
+                    <div class="modal-header bg-gradient text-white border-0">
+                        <h5 class="modal-title">
+                            <i class="fas fa-dumbbell me-2"></i>
+                            ${workoutData.exercise_name.replace('_', ' ').toUpperCase()} - Details
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="alert alert-warning border-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Annotated video is not available for this workout.
+                        </div>
+                        
+                        <!-- Stats -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-3">
+                                <div class="text-center p-3 bg-light rounded">
+                                    <div class="fs-3 fw-bold text-primary">${workoutData.total_reps}</div>
+                                    <small class="text-muted">Total Reps</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center p-3 bg-light rounded">
+                                    <div class="fs-3 fw-bold text-success">${workoutData.correct_reps}</div>
+                                    <small class="text-muted">Correct Reps</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center p-3 bg-light rounded">
+                                    <div class="fs-3 fw-bold text-info">${Math.round(workoutData.accuracy_score * 100)}%</div>
+                                    <small class="text-muted">Accuracy</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center p-3 bg-light rounded">
+                                    <div class="fs-3 fw-bold text-warning">${Math.round(workoutData.calories_burned || 0)}</div>
+                                    <small class="text-muted">Calories</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Feedback -->
+                        ${workoutData.form_feedback && workoutData.form_feedback.length > 0 ? `
+                            <h6 class="fw-bold mb-3">
+                                <i class="fas fa-comments me-2"></i>Form Feedback
+                            </h6>
+                            <div class="d-flex flex-column gap-2">
+                                ${workoutData.form_feedback.map(feedback => `
+                                    <div class="alert alert-info border-0 mb-0 py-2">
+                                        <i class="fas fa-info-circle me-2"></i>${feedback}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : '<p class="text-muted">No feedback available.</p>'}
+                    </div>
+                    <div class="modal-footer border-0 bg-light">
+                        <a href="/recording/report/${workoutId}" class="btn btn-primary hover-lift">
+                            <i class="fas fa-file-pdf me-2"></i>Download Report
+                        </a>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('workoutDetailsModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('workoutDetailsModal'));
+    modal.show();
+    
+    // Cleanup on close
+    document.getElementById('workoutDetailsModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+
+// Add gradient background style for modal headers
+const style = document.createElement('style');
+style.textContent = `
+    .bg-gradient {
+        background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-light) 100%);
+    }
+`;
+document.head.appendChild(style);
 
 // Load dashboard on page load
 document.addEventListener('DOMContentLoaded', function() {
